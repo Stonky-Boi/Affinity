@@ -26,8 +26,6 @@ At its core, the system is built around the **User** entity, which stores profil
 ### Safety
 - **Blocked Users** functionality for handling violations and abuse  
 
-The relationships between these entities mirror real social networks: users can have many friends, create posts, join conversations, and engage with content. Posts can collect likes, shares, and comments, reflecting the rich, interconnected nature of online communities.  
-
 ---
 
 ## Technology Stack
@@ -53,12 +51,42 @@ The relationships between these entities mirror real social networks: users can 
 
 ---
 
+## System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Frontend
+        Vite --> React
+        React --> Tailwind
+    end
+
+    subgraph Backend
+        NodeJS --> Express
+        Express --> SocketIO
+        Express --> OAuth
+    end
+
+    subgraph Database
+        PostgreSQL
+        Redis
+        Prisma
+    end
+
+    Frontend --> Backend
+    Backend --> Database
+    Database --> Backend
+    Backend --> Frontend
+````
+
+---
+
 ## Project Significance
 
-Affinity demonstrates how database principles can be applied in practice to build a modern social media platform:  
-- Reliable user and content management  
-- Efficient data access and interaction handling  
-- Ranking of friendships through interaction scoring  
-- Real-time communication and updates  
+Affinity demonstrates how database principles can be applied in practice to build a modern social media platform:
+
+* Reliable user and content management
+* Efficient data access and interaction handling
+* Ranking of friendships through interaction scoring
+* Real-time communication and updates
 
 By integrating these features, Affinity shows how careful database design supports the efficiency, safety, and connectivity of online communities.
