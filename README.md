@@ -26,9 +26,7 @@ At its core, the system is built around the **User** entity, which stores profil
 ### Safety
 - **Blocked Users** functionality for handling violations and abuse  
 
-The relationships between these entities mirror real social networks:  
-users can have many friends, create posts, join conversations, and engage with content.  
-Posts can collect likes, shares, and comments, reflecting the rich, interconnected nature of online communities.  
+The relationships between these entities mirror real social networks: users can have many friends, create posts, join conversations, and engage with content. Posts can collect likes, shares, and comments, reflecting the rich, interconnected nature of online communities.  
 
 ---
 
