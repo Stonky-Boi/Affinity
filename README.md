@@ -5,26 +5,41 @@ It emphasizes efficient data management, transparency, and strong support for re
 
 ---
 
-## Project Overview
+## Problem Implementation
 
-At its core, the system is built around the **User** entity, which stores profiles, login credentials, sessions, and customizable preferences.
+The proposed project implements a **social media database system** designed to manage complex social interactions, multimedia content, and user engagement while ensuring scalability, transparency, and efficient data handling.
 
-### Social Connections
-- **Friendships** for mutual relationships  
-- **Follows** for one-way connections  
-- **Friend Interaction Rating**: tracks the frequency and quality of interactions between friends, ranking relationships by activity.  
-  - This rating can also be used to recommend new friends and highlight meaningful connections.  
+### Core Entities
+At the foundation of the system are three **strong entities**:
+- **User**: Represents the core identity of each participant, storing login credentials, personal details, profiles, and customizable privacy settings.  
+- **Post**: Encapsulates user-generated content, including text, media, timestamps, and visibility settings.  
+- **Comment**: Enables threaded discussions by linking user input to posts and supporting hierarchical replies via parent–child comment structures.  
 
-### Content and Engagement
-- **Posts** support text, media, and metadata  
-- Users can interact via **Comments**, **Likes**, **Shares**, and **Saved Posts**  
+### Weak Entities
+Two **weak entities** capture dependent relationships:
+- **Reaction**: Represents user engagement with posts. Each reaction is uniquely identified by the combination of a user and a post, along with the reaction type (e.g., like, dislike, emoji).  
+- **Message**: Models direct communication between two users. Since its identity depends on the interacting pair and the timestamp, it is treated as a weak entity.  
 
-### Communication
-- **Messages** and **Conversations** for direct interactions  
-- **Notifications** to keep users updated in real time  
+### Associative Entities
+To capture the complexity of social interactions, two **associative entities** are introduced:
+- **Friendship**: Represents a mutual relationship between two users. It stores metrics such as number of exchanged messages, likes, and comments, which are combined into a computed *Friendship Score* for ranking and recommendation purposes.  
+- **Following**: Captures one-directional connections, storing status and timestamp to differentiate between active and pending follow requests.  
 
-### Safety
-- **Blocked Users** functionality for handling violations and abuse  
+### Relationships and Behavior
+The system’s relationships reflect real-world behaviors on social networks:
+- Users can **create** posts and **make** comments.  
+- Posts themselves **have** comments to enable rich interaction threads.  
+- Users can **give** reactions to posts, linking engagement directly to content.  
+- Users can **send** messages to each other, forming conversations.  
+- **Friendships** and **Followings** together model both mutual and one-way social bonds.  
+
+---
+
+### Summary
+These entities and relationships form a tightly interconnected structure that mirrors real-world online communities, ensuring support for:
+- User identity and privacy  
+- Social connectivity (mutual and one-way)  
+- Interactive engagement through content, comments, reactions, and communication   
 
 ---
 
