@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  username          String   @unique
+  email             String   @unique
+  password          String
+  first_name        String?
+  last_name         String?
+  picture_url       String?
+  bio               String?
+  date_of_birth     DateTime?
+  country           String?
+  state             String?
+  city              String?
+  phone             String?
+  alternate_email   String?  @unique
+  privacy_settings  Json?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  posts Post[]
+  comments Comment[]
+  reactions Reaction[]
+
+  followers Follows[] @relation("Following")
+  following Follows[] @relation("Follower")
+}
+
+model Post {
+  id         Int      @id @default(autoincrement())
+  content    String
+  media_url  String?
+  visibility String   @default("public") // [cite: 86]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  author    User @relation(fields: [author_id], references: [id])
+  author_id Int
+
+  comments Comment[]
+  reactions Reaction[]
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  content    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  author    User @relation(fields: [author_id], references: [id])
+  author_id Int
+
+  post      Post @relation(fields: [post_id], references: [id])
+  post_id   Int
+}
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  // reaction_type String   // We can add this later for different emojis
+  created_at DateTime @default(now())
+
+  user      User @relation(fields: [user_id], references: [id])
+  user_id   Int
+
+  post      Post @relation(fields: [post_id], references: [id])
+  post_id   Int
+
+  @@unique([user_id, post_id])
+}
+
+model Follows {
+  follower_id Int
+  follower    User @relation("Follower", fields: [follower_id], references: [id])
+
+  following_id Int
+  following    User @relation("Following", fields: [following_id], references: [id])
+
+  created_at DateTime @default(now())
+
+  @@id([follower_id, following_id])
+}
