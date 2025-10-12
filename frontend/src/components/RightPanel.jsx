@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext'; // 1. Import useAuth
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 function RightPanel() {
   const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [followingIds, setFollowingIds] = useState(new Set());
-  const { user } = useAuth(); // 2. Get the logged-in user
+  const navigate = useNavigate();
+  const { user, token } = useAuth();
 
   const fetchFollowing = () => {
     if (!user) return;
@@ -34,6 +36,25 @@ function RightPanel() {
     .then(fetchFollowing);
   };
 
+  const handleStartConversation = async (recipientId) => {
+    if (!user) return;
+    try {
+      const response = await fetch('http://localhost:3000/conversations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // Use token for auth
+        },
+        body: JSON.stringify({ recipient_id: recipientId }),
+      });
+      const conversation = await response.json();
+      // Navigate to the conversations page after starting one
+      navigate(`/conversations`);
+    } catch (error) {
+      console.error('Failed to start conversation', error);
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="bg-gray-100 p-4 rounded-lg">
@@ -46,6 +67,11 @@ function RightPanel() {
             return (
               <div key={u.id} className="flex items-center justify-between">
                 <div><p className="font-semibold">{u.username}</p></div>
+                <div className="flex gap-2">
+                <button
+                  onClick={() => handleStartConversation(u.id)}
+                  className="bg-gray-300 text-black px-3 py-1 rounded-lg text-sm font-semibold"> Message
+                </button>
                 <button
                   onClick={() => handleFollowToggle(u.id)}
                   className={`px-3 py-1 rounded-lg text-sm font-semibold ${
@@ -54,8 +80,9 @@ function RightPanel() {
                       : 'bg-blue-500 text-white hover:bg-blue-600'
                   }`}
                 >
-                  {isFollowing ? 'Following' : 'Follow'}
+                {isFollowing ? 'Following' : 'Follow'}
                 </button>
+                </div>
               </div>
             );
           })}

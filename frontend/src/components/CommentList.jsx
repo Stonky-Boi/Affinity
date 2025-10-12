@@ -1,13 +1,19 @@
-function CommentList({ comments }) {
+import Comment from './Comment';
+
+function CommentList({ comments, onSaveComment, onDeleteComment, onCommentCreated }) {
   return (
-    <div className="mt-4 space-y-2">
+    <div className="mt-4 space-y-4">
       {comments.map(comment => (
-        <div key={comment.id} className="text-sm p-2 bg-gray-100 rounded-lg">
-          <p className="font-semibold text-gray-600">{comment.author.username}</p>
-          <p>{comment.content}</p>
-        </div>
+        <Comment
+          key={comment.id}
+          comment={comment}
+          onSaveComment={onSaveComment}
+          onDeleteComment={onDeleteComment}
+          onCommentCreated={onCommentCreated}
+        />
       ))}
     </div>
   );
 }
+
 export default CommentList;

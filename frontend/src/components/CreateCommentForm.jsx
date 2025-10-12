@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-function CreateCommentForm({ postId, onCommentCreated }) {
+function CreateCommentForm({ postId, parentId = null, onCommentCreated }) {
   const [content, setContent] = useState('');
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -11,15 +11,27 @@ function CreateCommentForm({ postId, onCommentCreated }) {
 
     fetch(`http://localhost:3000/posts/${postId}/comments`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
         content,
-        author_id: user.id,
+        parent_id: parentId,
       }),
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to post comment');
+      }
+      return response.json();
     })
     .then(() => {
       setContent('');
-      onCommentCreated();
+      onCommentCreated(); // This will now run correctly
+    })
+    .catch(error => {
+      console.error("Error creating comment:", error);
     });
   };
 
@@ -39,4 +51,5 @@ function CreateCommentForm({ postId, onCommentCreated }) {
     </form>
   );
 }
+
 export default CreateCommentForm;

@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
 import PostList from '../components/PostList';
-import CreatePostForm from '../components/CreatePostForm';
-import RightPanel from '../components/RightPanel';
+import { useAuth } from '../context/AuthContext';
 
 function HomePage() {
   const [posts, setPosts] = useState([]);
-
+  const { token } = useAuth();
   const fetchPosts = () => {
     fetch('http://localhost:3000/posts')
       .then(response => response.json())
@@ -18,15 +16,44 @@ function HomePage() {
     fetchPosts();
   }, []);
 
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+
+    try {
+      await fetch(`http://localhost:3000/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      fetchPosts();
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+    }
+  };
+
+  const handleSavePost = async (postId, newContent) => {
+    try {
+      await fetch(`http://localhost:3000/posts/${postId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: newContent }),
+      });
+      fetchPosts(); // Refresh the post list
+    } catch (error) {
+      console.error("Failed to save post:", error);
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-white">
-      <div className="w-1/5 border-r"><Sidebar /></div>
-      <main className="w-3/5 overflow-y-auto">
-        <CreatePostForm onPostCreated={fetchPosts} />
-        <PostList posts={posts} />
-      </main>
-      <div className="w-1/5 border-l"><RightPanel /></div>
+    <div>
+      {}
+      <PostList posts={posts} onSavePost={handleSavePost} onDeletePost={handleDeletePost} />
     </div>
   );
 }
+
 export default HomePage;
