@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
+		"noEmit" : true,
+		"allowImportingTsExtensions" : true,
     "target": "ES2022", // Use a modern ECMAScript version
-    "module": "NodeNext", // Use the modern Node.js module system
-    "moduleResolution": "NodeNext", // How modules get resolved
+    "module": "ESNext", // Use the modern Node.js module system
+    "moduleResolution": "bundler", // How modules get resolved
     "baseUrl": ".", // Base directory for module resolution
     "outDir": "./dist", // Where to output compiled JavaScript
     "rootDir": "./src", // The root directory of our source files

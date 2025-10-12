@@ -1,20 +1,7 @@
-import express from 'express';
-import type { Express, Request, Response } from 'express';
-
-import cors from 'cors';
-import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import { Response, Request } from "express";
+import { prisma } from "../lib/prisma.ts";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { authenticateToken } from './middleware/auth.js';
-
-
-const app: Express = express();
-const prisma = new PrismaClient();
-const PORT: number | string = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json());
 
 interface UserSubmitBody {
 	username?: string;
@@ -28,7 +15,7 @@ interface LoginSubmitBody {
 }
 
 
-app.post('/auth/signup', async (req: Request, res: Response) => {
+export const signup = async (req: Request, res: Response) => {
 	const { username, email, password } = req.body as UserSubmitBody;
 
 	if (!username || !password || !email) {
@@ -81,10 +68,9 @@ app.post('/auth/signup', async (req: Request, res: Response) => {
 		console.error(error);
 		return res.status(500).json({ error: 'An error occurred while creating the user.' });
 	}
-});
+}
 
-
-app.post('/auth/login', async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response) => {
 	try {
 		const { email, password } = req.body as LoginSubmitBody;
 
@@ -128,46 +114,5 @@ app.post('/auth/login', async (req: Request, res: Response) => {
 		console.error(error);
 		return res.status(500).json({ error: "Internal server error." });
 	}
-});
 
-
-app.get('/profile', authenticateToken, async (req: Request, res: Response) => {
-	try {
-		const userId = req.user!.userId;
-		console.log("hello");
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: {
-				id: true,
-				email: true,
-				username: true,
-				createdAt: true
-			}
-		});
-
-		if (!user) {
-			return res.status(404).json({ error: "User not found." });
-		}
-
-		res.json(user);
-	} catch (error) {
-		res.status(500).json({ error: "Internal server error." });
-	}
-});
-
-
-
-
-
-
-if (process.env.NODE_ENV === 'production') {
-	const frontendDistPath = path.join(__dirname, '../../frontend/dist');
-	app.use(express.static(frontendDistPath));
-	app.get('*', (req: Request, res: Response) => {
-		res.sendFile(path.join(frontendDistPath, 'index.html'));
-	});
 }
-
-app.listen(PORT, () => {
-	console.log(`Backend server is running on http://localhost:${PORT}`);
-});
