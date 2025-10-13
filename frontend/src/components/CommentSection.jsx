@@ -39,6 +39,7 @@ function CommentSection({ postId }) {
     <div>
       <CommentList
         comments={comments}
+        postId={postId}
         onSaveComment={handleSaveComment}
         onDeleteComment={handleDeleteComment}
         onCommentCreated={fetchComments}

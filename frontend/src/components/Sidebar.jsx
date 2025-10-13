@@ -4,13 +4,13 @@ function Sidebar() {
   const navItems = [
     { icon: '🏠', name: 'Home', path: '/' },
     { icon: '➕', name: 'Create Post', path: '/create' },
+    { icon: '🔔', name: 'Requests', path: '/requests' },
     { icon: '✉️', name: 'Conversations', path: '/conversations' },
     { icon: '👤', name: 'Profile', path: '/profile' },
   ];
 
   return (
     <div className="p-4">
-      <h1 className="font-bold text-2xl mb-8 text-blue-600">Affinity</h1>
       <nav>
         <ul>
           {navItems.map((item) => (

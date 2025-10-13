@@ -35,6 +35,9 @@ model User {
 
   conversations Conversation[] @relation("Participants")
   messages      Message[]
+
+  friendshipsA Friendship[] @relation("UserA")
+  friendshipsB Friendship[] @relation("UserB")
 }
 
 model Post {
@@ -92,6 +95,8 @@ model Follows {
   following_id Int
   following    User @relation("Following", fields: [following_id], references: [id])
 
+  status String @default("pending") // Can be "pending", "accepted", "declined"
+  
   created_at DateTime @default(now())
 
   @@id([follower_id, following_id])
@@ -116,4 +121,22 @@ model Message {
 
   conversation    Conversation @relation(fields: [conversation_id], references: [id])
   conversation_id Int
+}
+
+model Friendship {
+  user_a_id Int
+  user_a    User @relation("UserA", fields: [user_a_id], references: [id])
+
+  user_b_id Int
+  user_b    User @relation("UserB", fields: [user_b_id], references: [id])
+
+  num_messages Int @default(0)
+  num_reactions Int @default(0)
+  num_comments Int @default(0)
+  friend_score  Int @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@id([user_a_id, user_b_id])
 }

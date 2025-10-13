@@ -2,6 +2,7 @@ import { useState } from 'react';
 import CommentSection from './CommentSection';
 import ReactionSection from './ReactionSection';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 function PostList({ posts, onSavePost, onDeletePost }) {
   const { user } = useAuth();
@@ -41,7 +42,9 @@ function PostList({ posts, onSavePost, onDeletePost }) {
               <div>
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-semibold text-gray-500">{post.author.username}</p>
+                    <Link to={`/${post.author.username}`}>
+                      <p className="font-semibold text-gray-500 hover:underline">{post.author.username}</p>
+                    </Link>
                     <p className="mt-1 text-lg">{post.content}</p>
                   </div>
                   {user && user.id === post.author_id && (

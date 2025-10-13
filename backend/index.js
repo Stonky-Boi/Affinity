@@ -6,6 +6,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { authenticateToken } = require('./middleware/auth');
+const { updateFriendship } = require('./FriendshipLogic');
 
 const prisma = new PrismaClient();
 const app = express();
@@ -26,6 +27,102 @@ app.get('/users', async (req, res) => {
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: 'Unable to fetch users' });
+  }
+});
+
+app.get('/users/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username },
+      select: { // Only select public-facing data
+        id: true,
+        username: true,
+        first_name: true,
+        last_name: true,
+        picture_url: true,
+        bio: true,
+        created_at: true,
+        posts: {
+          where: { deleted_at: null },
+          orderBy: { created_at: 'desc' },
+          include: { author: true } // Include author for the reused PostList
+        },
+      }
+    });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Unable to fetch user profile.' });
+  }
+});
+
+app.patch('/users/profile', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const {
+    first_name,
+    last_name,
+    bio,
+    picture_url,
+    date_of_birth,
+    country,
+    state,
+    city,
+    phone,
+    alternate_email
+  } = req.body;
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        first_name,
+        last_name,
+        bio,
+        picture_url,
+        date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
+        country,
+        state,
+        city,
+        phone,
+        alternate_email
+      },
+    });
+    // Return only non-sensitive data
+    const { password, ...safeUser } = updatedUser;
+    res.json(safeUser);
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: "Alternate email is already in use." });
+    }
+    res.status(500).json({ error: "Unable to update profile." });
+  }
+});
+
+app.get('/users/mutuals', authenticateToken, async (req, res) => {
+  const currentUserId = req.user.userId;
+  try {
+    // 1. Get IDs of people the current user is following
+    const followingResult = await prisma.follows.findMany({
+      where: { follower_id: currentUserId },
+      select: { following_id: true }
+    });
+    const followingIds = followingResult.map(f => f.following_id);
+
+    // 2. Find followers of the current user WHO ARE IN the followingIds list
+    const mutualsResult = await prisma.follows.findMany({
+      where: {
+        following_id: currentUserId,      // They follow me...
+        follower_id: { in: followingIds } // ...and I follow them.
+      },
+      include: { follower: true } // Include the full user object of the mutual
+    });
+
+    // 3. Return just the user objects
+    const mutualUsers = mutualsResult.map(m => m.follower);
+    res.json(mutualUsers);
+  } catch (error) {
+    res.status(500).json({ error: "Unable to fetch mutuals." });
   }
 });
 
@@ -184,9 +281,18 @@ app.post('/posts/:postId/comments', authenticateToken, async (req, res) => {
       },
       include: { author: true },
     });
+    // Find the post to identify its author.
+    const post = await prisma.post.findUnique({ where: { id: parseInt(postId) } });
+
+    // If the post is found, update the friendship score between the commenter and the author.
+    if (post) {
+      // author_id comes from the authenticated token, post.author_id comes from the lookup.
+      await updateFriendship(author_id, post.author_id, { num_comments: { increment: 1 } });
+    }
     res.json(newComment);
   } catch (error) {
-    res.status(500).json({ error: 'Unable to create comment' });
+    console.error("Failed to create comment. Error:", error); // Log the full error to the terminal
+    res.status(500).json({ error: 'Unable to create comment. See server logs for details.' });
   }
 });
 
@@ -267,6 +373,14 @@ app.post('/posts/:postId/react', async (req, res) => {
           post_id: parseInt(postId),
         },
       });
+      // Find the post to identify its author.
+      const post = await prisma.post.findUnique({ where: { id: parseInt(postId) } });
+
+      // If the post is found, update the friendship score between the liker and the author.
+      if (post) {
+        // user_id comes from req.body, post.author_id comes from the database lookup.
+        await updateFriendship(user_id, post.author_id, { num_reactions: { increment: 1 } });
+      }
       res.json(newReaction);
     }
   } catch (error) {
@@ -275,30 +389,78 @@ app.post('/posts/:postId/react', async (req, res) => {
 });
 
 // --- Follow Routes ---
-app.post('/users/:id/follow', async (req, res) => {
-  const { follower_id } = req.body; // This is the ID of the user who is clicking "follow"
-  const following_id = parseInt(req.params.id); // This is the ID of the user to be followed
+app.post('/users/:id/follow', authenticateToken, async (req, res) => {
+  const follower_id = req.user.userId;
+  const following_id = parseInt(req.params.id);
 
   try {
     const existingFollow = await prisma.follows.findUnique({
-      where: {
-        follower_id_following_id: { follower_id, following_id },
-      },
+      where: { follower_id_following_id: { follower_id, following_id } },
     });
 
     if (existingFollow) {
-      // If the relationship exists, delete it (unfollow)
-      await prisma.follows.delete({ where: { follower_id_following_id: { follower_id, following_id } } });
-      res.json({ message: 'Unfollowed user' });
-    } else {
-      // If it doesn't exist, create it (follow)
-      await prisma.follows.create({
-        data: { follower_id, following_id },
+      // If a relationship exists (pending or accepted), this action deletes it (unfollow/cancel request)
+      await prisma.follows.delete({
+        where: { follower_id_following_id: { follower_id, following_id } },
       });
-      res.json({ message: 'Followed user' });
+      res.json({ message: 'Unfollowed user or canceled request.' });
+    } else {
+      // If no relationship exists, create a new pending request
+      await prisma.follows.create({
+        data: { follower_id, following_id, status: 'pending' },
+      });
+      res.json({ message: 'Follow request sent.' });
     }
   } catch (error) {
-    res.json({ error: 'Unable to process follow request' });
+    res.status(500).json({ error: 'Unable to process follow request.' });
+  }
+});
+
+app.get('/follows/pending', authenticateToken, async (req, res) => {
+  const currentUserId = req.user.userId;
+  try {
+    const requests = await prisma.follows.findMany({
+      where: {
+        following_id: currentUserId,
+        status: 'pending',
+      },
+      include: { follower: true }, // Include info about who sent the request
+    });
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ error: 'Unable to fetch pending requests.' });
+  }
+});
+
+app.patch('/follows/respond', authenticateToken, async (req, res) => {
+  const currentUserId = req.user.userId;
+  const { follower_id, newStatus } = req.body; // newStatus should be "accepted" or "declined"
+
+  if (newStatus !== 'accepted' && newStatus !== 'declined') {
+    return res.status(400).json({ error: 'Invalid status.' });
+  }
+
+  try {
+    if (newStatus === 'accepted') {
+      // If accepted, update the status
+      await prisma.follows.update({
+        where: {
+          follower_id_following_id: { follower_id, following_id: currentUserId },
+        },
+        data: { status: 'accepted' },
+      });
+      res.json({ message: 'Follow request accepted.' });
+    } else {
+      // If declined, just delete the request
+      await prisma.follows.delete({
+        where: {
+          follower_id_following_id: { follower_id, following_id: currentUserId },
+        },
+      });
+      res.json({ message: 'Follow request declined.' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Unable to respond to request.' });
   }
 });
 
@@ -306,7 +468,7 @@ app.get('/users/:id/followers', async (req, res) => {
   const user_id = parseInt(req.params.id);
   try {
     const followers = await prisma.follows.findMany({
-      where: { following_id: user_id },
+      where: { following_id: user_id, status: 'accepted' },
       include: { follower: true }, // Include the full user object of the follower
     });
     res.json(followers);
@@ -315,29 +477,51 @@ app.get('/users/:id/followers', async (req, res) => {
   }
 });
 
-app.get('/users/:id/following', async (req, res) => {
+app.get('/users/:id/following', authenticateToken, async (req, res) => {
   const user_id = parseInt(req.params.id);
   try {
     const following = await prisma.follows.findMany({
+      // The "status: 'accepted'" filter has been REMOVED from here
       where: { follower_id: user_id },
-      include: { following: true }, // Include the full user object of the person being followed
+      include: { following: true },
     });
     res.json(following);
   } catch (error) {
-    res.json({ error: 'Unable to fetch following list' });
+    res.status(500).json({ error: 'Unable to fetch following list.' });
   }
 });
 
 // --- Messaging Routes ---
 app.get('/conversations', authenticateToken, async (req, res) => {
+  const currentUserId = req.user.userId;
   try {
+    // 1. Get the IDs of all mutual followers
+    const followingResult = await prisma.follows.findMany({
+      where: { follower_id: currentUserId },
+      select: { following_id: true }
+    });
+    const followingIds = followingResult.map(f => f.following_id);
+
+    const mutualsResult = await prisma.follows.findMany({
+      where: {
+        following_id: currentUserId,
+        follower_id: { in: followingIds }
+      },
+      select: { follower_id: true }
+    });
+    const mutualIds = mutualsResult.map(m => m.follower_id);
+
+    // 2. Fetch conversations ONLY with mutuals
     const conversations = await prisma.conversation.findMany({
       where: {
-        participants: { some: { id: req.user.userId } }
+        AND: [
+          { participants: { some: { id: currentUserId } } },
+          { participants: { some: { id: { in: mutualIds } } } }
+        ]
       },
       include: {
-        participants: true, // Include details of who is in the conversation
-        messages: { // Include the last message for a preview
+        participants: true,
+        messages: {
           orderBy: { created_at: 'desc' },
           take: 1,
           include: { sender: true }
@@ -410,6 +594,19 @@ io.on('connection', (socket) => {
 
   socket.on('send_message', async (data) => {
     const { content, sender_id, conversation_id } = data;
+
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversation_id },
+      include: { participants: true }, // Get all participants in the chat
+    });
+
+    // Find the other person in the chat (not the sender).
+    const recipient = conversation.participants.find(p => p.id !== sender_id);
+
+    // If a recipient exists, update the friendship score between the sender and recipient.
+    if (recipient) {
+      await updateFriendship(sender_id, recipient.id, { num_messages: { increment: 1 } });
+    }
 
     const newMessage = await prisma.message.create({
       data: {

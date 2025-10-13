@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import CreateCommentForm from './CreateCommentForm';
+import { Link } from 'react-router-dom';
 
-function Comment({ comment, onSaveComment, onDeleteComment, onCommentCreated }) {
+function Comment({ comment, postId, onSaveComment, onDeleteComment, onCommentCreated }) {
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(comment.content);
@@ -24,7 +25,9 @@ function Comment({ comment, onSaveComment, onDeleteComment, onCommentCreated }) 
           </div>
         ) : (
           <div>
-            <p className="font-semibold text-gray-600">{comment.author.username}</p>
+            <Link to={`/${comment.author.username}`}>
+              <p className="font-semibold text-gray-600 hover:underline">{comment.author.username}</p>
+            </Link>
             <p>{comment.content}</p>
             <div className="mt-1 flex items-center gap-4">
               <button onClick={() => setIsReplying(!isReplying)} className="text-xs font-semibold text-gray-500 hover:underline">Reply</button>
@@ -41,17 +44,25 @@ function Comment({ comment, onSaveComment, onDeleteComment, onCommentCreated }) 
 
       {isReplying && (
         <div className="mt-2">
-          <CreateCommentForm postId={comment.post_id} parentId={comment.id} onCommentCreated={() => { setIsReplying(false); onCommentCreated(); }} />
+          <CreateCommentForm postId={postId} parentId={comment.id} onCommentCreated={() => { setIsReplying(false); onCommentCreated(); }} />
         </div>
       )}
 
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-2">
           {comment.replies.map(reply => (
-            <Comment key={reply.id} comment={reply} onSaveComment={onSaveComment} onDeleteComment={onDeleteComment} onCommentCreated={onCommentCreated} />
+            <Comment
+              key={reply.id}
+              comment={reply}
+              postId={postId}
+              onSaveComment={onSaveComment}
+              onDeleteComment={onDeleteComment}
+              onCommentCreated={onCommentCreated}
+            />
           ))}
         </div>
       )}
+
     </div>
   );
 }

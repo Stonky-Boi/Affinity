@@ -7,6 +7,9 @@ import CreatePostPage from './pages/CreatePostPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConversationsPage from './pages/ConversationsPage';
 import MainLayout from './components/MainLayout';
+import ProfilePage from './pages/ProfilePage';
+import PublicProfilePage from './pages/PublicProfilePage';
+import FollowRequestsPage from './pages/FollowRequestsPage';
 
 function App() {
   const { user, logout } = useAuth();
@@ -43,6 +46,9 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/create" element={<CreatePostPage />} />
           <Route path="/conversations" element={<ConversationsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/:username" element={<PublicProfilePage />} />
+          <Route path="/requests" element={<FollowRequestsPage />} />
         </Route>
       </Routes>
     </div>
