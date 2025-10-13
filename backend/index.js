@@ -11,7 +11,7 @@ const port = 3000;
 
 app.use(cors());
 app.use(express.json());
-
+require('dotenv').config();
 // --- Auth Routes ---
 app.post('/auth/signup', async (req, res) => {
   const { username, email, password } = req.body;
@@ -55,6 +55,7 @@ app.post('/auth/login', async (req, res) => {
     res.json({ message: 'Login successful!', token, user });
 
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: 'Something went wrong.' });
   }
 });
