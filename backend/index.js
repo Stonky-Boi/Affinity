@@ -490,7 +490,7 @@ app.get('/users/:id/following', authenticateToken, async (req, res) => {
     });
     res.json(following);
   } catch (error) {
-    res.status(500).json({ error: 'Unable to fetch following list.' });
+    res.status(500).json({ error: error.body });
   }
 });
 

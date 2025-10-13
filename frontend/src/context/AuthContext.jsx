@@ -35,7 +35,33 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  const signup = async (username, email, password) => { /* ... existing signup logic ... */ };
+  const signup = async (username, email, password) => {
+    // This function will first register the user, then log them in
+    const signupResponse = await fetch('http://localhost:3000/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password }),
+    });
+
+    if (!signupResponse.ok) {
+      const errorData = await signupResponse.json();
+      throw new Error(errorData.error || 'Failed to sign up');
+    }
+    
+    // After successful signup, log the user in to get a token
+    const loginResponse = await fetch('http://localhost:3000/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const loginData = await loginResponse.json();
+    if (!loginResponse.ok) {
+      throw new Error(loginData.error || 'Failed to login after signup');
+    }
+    
+    login(loginData.user, loginData.token);
+  };
 
   const authValue = { token, user, login, signup, logout };
 

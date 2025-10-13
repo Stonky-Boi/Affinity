@@ -16,6 +16,7 @@ function RightPanel() {
     .then(res => res.json())
     .then(data => {
       // Create a Map for quick lookups: { userId -> status }
+      console.log(data);
       const followsMap = new Map(data.map(f => [f.following_id, f.status]));
       setOutgoingFollows(followsMap);
     });
