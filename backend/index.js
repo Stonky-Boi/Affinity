@@ -16,6 +16,9 @@ const io = new Server(httpServer, {
     origin: "http://localhost:5173",
   }
 });
+
+
+require('dotenv').config();
 const port = 3000;
 app.use(cors());
 app.use(express.json());
