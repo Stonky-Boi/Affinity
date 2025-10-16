@@ -27,12 +27,11 @@ export const signup = async (req: Request, res: Response) => {
 
 		const newUser = await prisma.user.create({
 			data: {
-				username: username,
-				email: email,
-				password: hashedPassword,
-			},
-		});
-
+				username : username,
+				email : email,
+				password : hashedPassword
+			}
+		})
 		console.info(newUser);
 
 		const jwtSecret = process.env.JWT_SECRET;
@@ -47,7 +46,7 @@ export const signup = async (req: Request, res: Response) => {
 			{ expiresIn: '1h' }
 		);
 
-		return res.status(200).json({ token });
+		return res.status(201).json({ message : "User created succesfully!",token });
 
 	} catch (error: any) {
 		if (error?.code === 'P2002') {
