@@ -33,6 +33,56 @@ app.get('/users', async (req, res) => {
   }
 });
 
+app.get('/users/search', authenticateToken, async (req, res) => {
+  // The search term will be passed as a query parameter (e.g., /users/search?q=arn)
+  const { q } = req.query;
+
+  if (!q) {
+    return res.json([]); // Return an empty array if the query is empty
+  }
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        username: {
+          contains: q,
+          mode: 'insensitive',  // Make the search case-insensitive
+        },
+      },
+    });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Unable to perform search.' });
+  }
+});
+
+app.get('/users/mutuals', authenticateToken, async (req, res) => {
+  const currentUserId = req.user.userId;
+  try {
+    // 1. Get IDs of people the current user is following
+    const followingResult = await prisma.follows.findMany({
+      where: { follower_id: currentUserId },
+      select: { following_id: true }
+    });
+    const followingIds = followingResult.map(f => f.following_id);
+
+    // 2. Find followers of the current user WHO ARE IN the followingIds list
+    const mutualsResult = await prisma.follows.findMany({
+      where: {
+        following_id: currentUserId,      // They follow me...
+        follower_id: { in: followingIds } // ...and I follow them.
+      },
+      include: { follower: true } // Include the full user object of the mutual
+    });
+
+    // 3. Return just the user objects
+    const mutualUsers = mutualsResult.map(m => m.follower);
+    res.json(mutualUsers);
+  } catch (error) {
+    res.status(500).json({ error: "Unable to fetch mutuals." });
+  }
+});
+
 app.get('/users/:username', async (req, res) => {
   const { username } = req.params;
   try {
@@ -99,33 +149,6 @@ app.patch('/users/profile', authenticateToken, async (req, res) => {
       return res.status(409).json({ error: "Alternate email is already in use." });
     }
     res.status(500).json({ error: "Unable to update profile." });
-  }
-});
-
-app.get('/users/mutuals', authenticateToken, async (req, res) => {
-  const currentUserId = req.user.userId;
-  try {
-    // 1. Get IDs of people the current user is following
-    const followingResult = await prisma.follows.findMany({
-      where: { follower_id: currentUserId },
-      select: { following_id: true }
-    });
-    const followingIds = followingResult.map(f => f.following_id);
-
-    // 2. Find followers of the current user WHO ARE IN the followingIds list
-    const mutualsResult = await prisma.follows.findMany({
-      where: {
-        following_id: currentUserId,      // They follow me...
-        follower_id: { in: followingIds } // ...and I follow them.
-      },
-      include: { follower: true } // Include the full user object of the mutual
-    });
-
-    // 3. Return just the user objects
-    const mutualUsers = mutualsResult.map(m => m.follower);
-    res.json(mutualUsers);
-  } catch (error) {
-    res.status(500).json({ error: "Unable to fetch mutuals." });
   }
 });
 
@@ -480,7 +503,7 @@ app.get('/users/:id/followers', async (req, res) => {
   }
 });
 
-app.get('/users/:id/following', authenticateToken, async (req, res) => {
+app.get('/users/:id/following', async (req, res) => {
   const user_id = parseInt(req.params.id);
   try {
     const following = await prisma.follows.findMany({
