@@ -50,7 +50,7 @@ function CreateCommentForm({ postId, parentId = null, onCommentCreated }) {
       <button
         type="submit"
         // Using primary-border as the background for a subtle gray button
-        className="px-4 py-2 bg-primary-border text-primary-text rounded-lg text-sm font-semibold hover:brightness-95" // Slightly darken on hover
+        className="px-4 py-2 bg-primary-border text-primary-text rounded-lg text-sm font-semibold transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-95" // Added transition, scale
       >
         Send
       </button>

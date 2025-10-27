@@ -76,7 +76,7 @@ model Comment {
 
 model Reaction {
   id        Int      @id @default(autoincrement())
-  // reaction_type String   // We can add this later for different emojis
+  reaction_type String?
   created_at DateTime @default(now())
 
   user      User @relation(fields: [user_id], references: [id])
@@ -103,10 +103,10 @@ model Follows {
 }
 
 model Conversation {
-  id         Int       @id @default(autoincrement())
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-
+  id           Int       @id @default(autoincrement())
+  name         String?   // Optional name for group chats
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
   participants User[]    @relation("Participants")
   messages     Message[]
 }

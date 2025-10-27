@@ -45,8 +45,8 @@ function FollowRequestsPage() {
               <UserCard user={req.follower} />
               <div className="flex gap-2">
                 {/* Use semantic classes for buttons */}
-                <button onClick={() => handleResponse(req.follower_id, 'accepted')} className="bg-accent text-white font-semibold px-4 py-1 rounded-lg hover:brightness-90">Accept</button>
-                <button onClick={() => handleResponse(req.follower_id, 'declined')} className="bg-primary-border text-primary-text font-semibold px-4 py-1 rounded-lg hover:brightness-95">Decline</button>
+                <button onClick={() => handleResponse(req.follower_id, 'accepted')} className="bg-accent text-white font-semibold px-4 py-1 rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-90">Accept</button>
+                <button onClick={() => handleResponse(req.follower_id, 'declined')} className="bg-primary-border text-primary-text font-semibold px-4 py-1 rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-95">Decline</button>
               </div>
             </div>
           ))}

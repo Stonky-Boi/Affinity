@@ -83,6 +83,54 @@ app.get('/users/mutuals', authenticateToken, async (req, res) => {
   }
 });
 
+// GET mutual followers between the logged-in user and the specified user
+app.get('/users/:username/mutuals-with-viewer', authenticateToken, async (req, res) => {
+  const viewerId = req.user.userId;
+  const profileUsername = req.params.username;
+
+  try {
+    // Find the profile user's ID
+    const profileUser = await prisma.user.findUnique({
+      where: { username: profileUsername },
+      select: { id: true }
+    });
+    if (!profileUser) return res.status(404).json({ error: 'Profile user not found.' });
+    const profileUserId = profileUser.id;
+
+    // 1. Get IDs of people the viewer follows
+    const viewerFollowingResult = await prisma.follows.findMany({
+      where: { follower_id: viewerId, status: 'accepted' },
+      select: { following_id: true }
+    });
+    const viewerFollowingIds = new Set(viewerFollowingResult.map(f => f.following_id));
+
+    // 2. Get IDs of people the profile user follows
+    const profileFollowingResult = await prisma.follows.findMany({
+      where: { follower_id: profileUserId, status: 'accepted' },
+      select: { following_id: true }
+    });
+    const profileFollowingIds = new Set(profileFollowingResult.map(f => f.following_id));
+
+    // 3. Find the intersection: users followed by BOTH the viewer AND the profile user
+    const mutualFollowingIds = [...viewerFollowingIds].filter(id => profileFollowingIds.has(id));
+
+    // 4. Fetch the user details for these mutual connections
+    const mutualUsers = await prisma.user.findMany({
+      where: {
+        id: { in: mutualFollowingIds }
+      },
+      // Select only necessary fields
+      select: { id: true, username: true, picture_url: true }
+    });
+
+    res.json(mutualUsers);
+
+  } catch (error) {
+    console.error("Error fetching mutuals with viewer:", error);
+    res.status(500).json({ error: "Unable to fetch mutual connections." });
+  }
+});
+
 app.get('/users/:username', async (req, res) => {
   const { username } = req.params;
   try {
@@ -444,45 +492,56 @@ app.get('/posts/:postId/reactions', async (req, res) => {
   }
 });
 
-app.post('/posts/:postId/react', async (req, res) => {
-  const { postId } = req.params;
-  const { user_id } = req.body; // In a real app, you'd get this from an authenticated session
+// POST a reaction (create, update, or delete based on type)
+app.post('/posts/:postId/reactions', authenticateToken, async (req, res) => {
+  // Ensure postId is correctly parsed from params
+  const postId = parseInt(req.params.postId);
+  if (isNaN(postId)) {
+    return res.status(400).json({ error: "Invalid Post ID." });
+  }
+
+  const userId = req.user.userId;
+  const { reaction_type } = req.body; // Expecting reaction_type like 'like', 'heart'
+
+  // Basic validation for reaction_type
+  if (!reaction_type || typeof reaction_type !== 'string') {
+    return res.status(400).json({ error: "Invalid reaction type provided." });
+  }
 
   try {
-    // Check if the user has already reacted to this post
     const existingReaction = await prisma.reaction.findUnique({
-      where: {
-        user_id_post_id: { // This is the unique constraint we defined in the schema
-          user_id: user_id,
-          post_id: parseInt(postId),
-        },
-      },
+      where: { user_id_post_id: { user_id: userId, post_id: postId } },
     });
 
     if (existingReaction) {
-      // If reaction exists, delete it (unlike)
-      await prisma.reaction.delete({ where: { id: existingReaction.id } });
-      res.json({ message: 'Reaction removed' });
-    } else {
-      // If reaction does not exist, create it (like)
-      const newReaction = await prisma.reaction.create({
-        data: {
-          user_id,
-          post_id: parseInt(postId),
-        },
-      });
-      // Find the post to identify its author.
-      const post = await prisma.post.findUnique({ where: { id: parseInt(postId) } });
-
-      // If the post is found, update the friendship score between the liker and the author.
-      if (post) {
-        // user_id comes from req.body, post.author_id comes from the database lookup.
-        await updateFriendship(user_id, post.author_id, { num_reactions: { increment: 1 } });
+      if (existingReaction.reaction_type === reaction_type) {
+        // Un-react: Delete if reacting with the same type again
+        await prisma.reaction.delete({ where: { id: existingReaction.id } });
+        return res.json({ message: 'Reaction removed' });
+      } else {
+        // Change reaction: Update if reacting with a different type
+        const updatedReaction = await prisma.reaction.update({
+          where: { id: existingReaction.id },
+          data: { reaction_type },
+        });
+        return res.json(updatedReaction);
       }
-      res.json(newReaction);
+    } else {
+      // New reaction: Create if none exists
+      const newReaction = await prisma.reaction.create({
+        data: { user_id: userId, post_id: postId, reaction_type },
+      });
+
+      // Update Friendship Score
+      const post = await prisma.post.findUnique({ where: { id: postId } });
+      if (post && post.author_id !== userId) { // Don't increment score for reacting to own post
+        await updateFriendship(userId, post.author_id, { num_reactions: { increment: 1 } });
+      }
+      return res.json(newReaction);
     }
   } catch (error) {
-    res.json({ error: 'Unable to process reaction' });
+    console.error("Error processing reaction:", error); // Log detailed error
+    res.status(500).json({ error: 'Unable to process reaction' });
   }
 });
 
@@ -646,37 +705,61 @@ app.get('/conversations/:id/messages', authenticateToken, async (req, res) => {
   }
 });
 
+// In backend/index.js - Messaging Routes
+
 app.post('/conversations', authenticateToken, async (req, res) => {
-  const { recipient_id } = req.body;
+  // Expect an array of participant IDs and an optional name
+  const { participant_ids, name } = req.body;
   const initiator_id = req.user.userId;
 
-  try {
-    // Look for an existing conversation with exactly these two participants
-    const existingConversation = await prisma.conversation.findFirst({
-      where: {
-        AND: [
-          { participants: { some: { id: initiator_id } } },
-          { participants: { some: { id: recipient_id } } },
-        ],
-        // Ensure it's a 1-on-1 chat for now
-        participants: { every: { id: { in: [initiator_id, recipient_id] } } }
-      },
-    });
+  if (!participant_ids || !Array.isArray(participant_ids) || participant_ids.length === 0) {
+    return res.status(400).json({ error: "Participant IDs are required." });
+  }
 
-    if (existingConversation) {
-      return res.json(existingConversation);
+  // Combine initiator with other participants and remove duplicates
+  const allParticipantIds = [...new Set([initiator_id, ...participant_ids])];
+
+  // Sort IDs to ensure consistent lookups for existing chats
+  allParticipantIds.sort();
+
+  try {
+    let conversationToReturn = null;
+
+    // --- Logic to find existing conversations ---
+    if (allParticipantIds.length === 2) {
+      // Find a conversation where *every* participant's ID is in our sorted list of two IDs.
+      const existingOneOnOne = await prisma.conversation.findFirst({
+        where: {
+          participants: { every: { id: { in: allParticipantIds } } },
+          // The invalid AND clause with participants: { count: 2 } is REMOVED
+        },
+        include: { participants: true } // Include participants to return
+      });
+      if (existingOneOnOne) {
+        conversationToReturn = existingOneOnOne;
+      }
+    }
+    // Can add logic here later for finding existing group chats if needed.
+
+    // --- If no existing conversation found, create one ---
+    if (!conversationToReturn) {
+      const participantConnections = allParticipantIds.map(id => ({ id: id }));
+      const newConversation = await prisma.conversation.create({
+        data: {
+          name: allParticipantIds.length > 2 ? name : null,
+          participants: {
+            connect: participantConnections,
+          },
+        },
+        include: { participants: true }
+      });
+      conversationToReturn = newConversation;
     }
 
-    // If not found, create a new one
-    const newConversation = await prisma.conversation.create({
-      data: {
-        participants: {
-          connect: [{ id: initiator_id }, { id: recipient_id }],
-        },
-      },
-    });
-    res.json(newConversation);
+    res.json(conversationToReturn); // Return either the found or the created conversation
+
   } catch (error) {
+    console.error("Error starting conversation:", error);
     res.status(500).json({ error: 'Unable to start conversation' });
   }
 });

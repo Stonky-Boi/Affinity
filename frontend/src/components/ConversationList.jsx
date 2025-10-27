@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-// The 'onSelect' function will tell the parent page which chat to open
 function ConversationList({ onSelectConversation }) {
   const [conversations, setConversations] = useState([]);
   const { user, token } = useAuth();
@@ -16,31 +15,51 @@ function ConversationList({ onSelectConversation }) {
     .catch(error => console.error("Failed to fetch conversations:", error));
   }, [token]);
 
-  const getRecipient = (participants) => {
-    return participants.find(p => p.id !== user.id);
+  // Helper to generate display name for a conversation
+  const getConversationName = (convo) => {
+    if (convo.name) {
+      return convo.name; // Use group name if available
+    }
+    if (convo.participants.length === 2) {
+      const recipient = convo.participants.find(p => p.id !== user?.id);
+      return recipient?.username || "Unknown User"; // 1-on-1 chat
+    }
+    if (convo.participants.length > 2) {
+      // List first few participants for unnamed group chats
+      return convo.participants
+        .filter(p => p.id !== user?.id)
+        .map(p => p.username)
+        .slice(0, 3) // Show max 3 names
+        .join(', ') + (convo.participants.length > 4 ? '...' : '');
+    }
+    return "Empty Conversation"; // Fallback
   };
+
+  const getLastMessagePreview = (convo) => {
+     const lastMsg = convo.messages[0];
+     if (!lastMsg) return "No messages yet";
+     // Optional: Add sender name to preview for group chats
+     const senderName = lastMsg.sender?.id === user?.id ? "You: " : (convo.participants.length > 2 ? `${lastMsg.sender?.username || '?'}: ` : "");
+     return `${senderName}${lastMsg.content}`;
+  }
 
   return (
     <div className="p-4">
-      {/* Use semantic text color */}
-      <h1 className="text-xl font-bold mb-4 text-primary-text">Conversations</h1>
       <div className="space-y-2">
         {conversations.map(convo => {
-          const recipient = getRecipient(convo.participants);
-          if (!recipient) return null;
+          if (!convo || !convo.participants) return null; // Add safety check
+
+          const displayName = getConversationName(convo);
+          const lastMessage = getLastMessagePreview(convo);
 
           return (
-            // Use semantic hover background
             <div
               key={convo.id}
               onClick={() => onSelectConversation(convo.id)}
-              className="p-2 rounded-lg hover:bg-primary-border cursor-pointer" // Changed hover class
+              className="p-2 rounded-lg hover:bg-primary-border cursor-pointer"
             >
-              {/* Use semantic text colors */}
-              <p className="font-semibold text-primary-text">{recipient.username}</p>
-              <p className="text-sm text-secondary-text truncate">
-                {convo.messages[0]?.content || "No messages yet"}
-              </p>
+              <p className="font-semibold text-primary-text truncate">{displayName}</p>
+              <p className="text-sm text-secondary-text truncate">{lastMessage}</p>
             </div>
           );
         })}

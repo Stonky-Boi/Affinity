@@ -1,54 +1,112 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Home, PlusSquare, Bell, MessageSquare, User, LogOut, Users } from 'lucide-react';
+import { useState } from 'react';
 
 function Sidebar() {
-  const { logout } = useAuth();
+  const { user, logout, accounts, switchAccount } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  // --- ADD THIS FUNCTION DEFINITION ---
+  const handleSwitch = (userId) => {
+    switchAccount(userId);
+    setIsSwitchModalOpen(false); // Close modal after switching
+  };
+  // --- END ADDITION ---
+
   const navItems = [
-    { icon: '🏠', name: 'Home', path: '/' },
-    { icon: '➕', name: 'Create Post', path: '/create' },
-    { icon: '🔔', name: 'Requests', path: '/requests' },
-    { icon: '✉️', name: 'Conversations', path: '/conversations' },
-    { icon: '👤', name: 'My Profile', path: '/profile' },
+    { Icon: Home, name: 'Home', path: '/' },
+    { Icon: PlusSquare, name: 'Create Post', path: '/create' },
+    { Icon: Bell, name: 'Requests', path: '/requests' },
+    { Icon: MessageSquare, name: 'Conversations', path: '/conversations' },
+    { Icon: User, name: 'My Profile', path: '/profile' },
   ];
 
   return (
-    // Added text-primary-text for default text color
-    <div className="p-4 h-full flex flex-col justify-between text-primary-text">
+    // Add 'relative' positioning here to contain the absolute modal
+    <div className="p-4 h-full flex flex-col justify-between text-primary-text relative">
+      {/* --- Top Nav Section --- */}
       <div>
         <nav>
           <ul>
-            {navItems.map((item) => (
-              <li key={item.name} className="mb-4">
-                {/* Updated hover background and text color */}
-                <Link to={item.path} className="flex items-center p-2 text-lg font-semibold rounded-lg hover:bg-primary-border">
-                  <span className="mr-4">{item.icon}</span>
-                  <span>{item.name}</span>
-                </Link>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              const NavIcon = item.Icon;
+              const isActive = currentPath === item.path;
+              return (
+                <li key={item.name} className="mb-4">
+                  <Link
+                    to={item.path}
+                    className={`flex items-center p-2 text-lg rounded-lg transition-colors duration-200 ${
+                      isActive
+                        ? 'bg-accent text-white font-bold shadow-md'
+                        : 'font-semibold hover:bg-primary-border'
+                    }`}
+                  >
+                    <NavIcon size={24} className="mr-4 flex-shrink-0" />
+                    <span>{item.name}</span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
       </div>
 
-      {/* Account Management Section - Updated text and hover colors */}
+      {/* --- Account Management Section --- */}
       <div>
-        <button onClick={() => alert("Switch accounts feature coming soon!")} className="w-full text-left p-2 text-md text-secondary-text rounded-lg hover:bg-primary-border">
+        <button onClick={() => setIsSwitchModalOpen(true)} className="w-full flex items-center text-left p-2 text-md text-secondary-text rounded-lg hover:bg-primary-border transition-colors duration-200">
+          <Users size={20} className="mr-3" />
           Switch Accounts
         </button>
-        {/* Kept red for emphasis, but updated hover background */}
-        <button onClick={handleLogout} className="w-full text-left p-2 text-md text-red-500 font-semibold rounded-lg hover:bg-red-500/10"> {/* Using opacity modifier for hover */}
-          Log Out
+        <button onClick={handleLogout} className="w-full flex items-center text-left p-2 text-md text-red-500 font-semibold rounded-lg hover:bg-red-500/10 transition-colors duration-200">
+          <LogOut size={20} className="mr-3" />
+          Log Out ({user?.username})
         </button>
       </div>
+
+      {/* --- Account Switcher Modal --- */}
+      {isSwitchModalOpen && (
+        <div className="absolute bottom-16 left-2 right-2 mb-2 p-4 bg-surface border border-primary-border rounded-lg shadow-lg z-20">
+          <h3 className="font-semibold mb-2 text-primary-text">Switch Account</h3>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {accounts.map(acc => {
+              const profilePic = acc.user.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${acc.user.username}`;
+              const isActive = acc.user.id === user?.id;
+              return (
+                <div
+                  key={acc.user.id}
+                  // This onClick now correctly calls the defined handleSwitch function
+                  onClick={() => handleSwitch(acc.user.id)}
+                  className={`flex items-center p-2 rounded cursor-pointer ${isActive ? 'bg-accent/10' : 'hover:bg-primary-border'}`}
+                >
+                  <img src={profilePic} alt={acc.user.username} className="w-8 h-8 rounded-full mr-2"/>
+                  <span className={`text-sm ${isActive ? 'font-bold text-primary-text' : 'text-secondary-text'}`}>{acc.user.username}</span>
+                  {isActive && <span className="ml-auto text-xs text-accent">(Active)</span>}
+                </div>
+              );
+             })}
+          </div>
+           {/* Log in to another account button */}
+           <button
+              onClick={() => { setIsSwitchModalOpen(false); navigate('/login'); }}
+              className="mt-3 w-full text-center text-sm text-accent font-semibold hover:underline"
+           >
+             + Log in to another account
+           </button>
+          {/* Close button */}
+          <button onClick={() => setIsSwitchModalOpen(false)} className="absolute top-2 right-2 text-secondary-text hover:text-primary-text z-30">✕</button>
+        </div>
+      )}
+      {/* --- END Modal --- */}
     </div>
   );
 }
-
 export default Sidebar;

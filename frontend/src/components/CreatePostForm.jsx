@@ -56,7 +56,7 @@ function CreatePostForm({ onPostCreated }) {
         <button
           type="submit"
           // Use accent color for the main action button
-          className="px-4 py-2 bg-accent text-white font-semibold rounded-lg hover:brightness-90" // Slightly darken accent on hover
+          className="px-4 py-2 bg-accent text-white font-semibold rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-90" // Added transition, scale
         >
           Post
         </button>

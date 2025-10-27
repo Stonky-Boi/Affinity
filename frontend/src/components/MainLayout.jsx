@@ -3,16 +3,12 @@ import Sidebar from './Sidebar';
 import RightPanel from './RightPanel';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 
 function MainLayout() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   return (
     <div>
@@ -22,14 +18,14 @@ function MainLayout() {
           <Link to="/" className="text-xl font-bold text-accent">Affinity</Link>
           <div className="flex items-center">
             <span className="mr-4 font-semibold text-primary-text">Welcome, {user.username}!</span>
-            {/* Dark Mode Toggle Button */}
+            {/* 2. Update the theme toggle button */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-primary-border text-primary-text" // Use semantic classes
+              className="p-2 rounded-full hover:bg-primary-border text-primary-text"
+              aria-label="Toggle theme" // Add accessibility label
             >
-              {theme === 'light' ? '🌙' : '☀️'}
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
-            {/* Logout button moved to sidebar */}
           </div>
         </nav>
       )}
