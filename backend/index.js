@@ -226,6 +226,78 @@ app.get('/posts', async (req, res) => {
   res.json(posts);
 });
 
+// In backend/index.js
+
+app.get('/feed', authenticateToken, async (req, res) => {
+  const currentUserId = req.user.userId;
+  try {
+    // 1. Get IDs of users the current user is following (accepted status)
+    const following = await prisma.follows.findMany({
+      where: {
+        follower_id: currentUserId,
+        status: 'accepted',
+      },
+      select: { following_id: true },
+    });
+    // Create a Set for efficient lookup
+    const followingIds = new Set(following.map(f => f.following_id));
+
+    // 2. Get Friendship scores involving the current user
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        OR: [
+          { user_a_id: currentUserId },
+          { user_b_id: currentUserId },
+        ],
+      },
+    });
+    // Create a Map for efficient score lookup: { otherUserId -> score }
+    const friendshipScores = new Map();
+    friendships.forEach(f => {
+      const otherUserId = f.user_a_id === currentUserId ? f.user_b_id : f.user_a_id;
+      friendshipScores.set(otherUserId, f.friend_score); // Assuming friend_score is calculated, default is 0
+    });
+
+    // 3. Fetch ALL non-deleted posts
+    const allPosts = await prisma.post.findMany({
+      where: {
+        deleted_at: null,
+      },
+      include: { author: true },
+      orderBy: { created_at: 'desc' }, // Base sort by newest first
+    });
+
+    // 4. Apply custom sorting logic
+    allPosts.sort((postA, postB) => {
+      const isAFollowed = followingIds.has(postA.author_id);
+      const isBFollowed = followingIds.has(postB.author_id);
+
+      // Rule 1: Prioritize posts from followed users
+      if (isAFollowed && !isBFollowed) return -1; // A comes first
+      if (!isAFollowed && isBFollowed) return 1;  // B comes first
+
+      // Rule 2: If both are followed, prioritize by friendship score (descending)
+      if (isAFollowed && isBFollowed) {
+        const scoreA = friendshipScores.get(postA.author_id) || 0;
+        const scoreB = friendshipScores.get(postB.author_id) || 0;
+        if (scoreA !== scoreB) {
+          return scoreB - scoreA; // Higher score comes first
+        }
+      }
+
+      // Rule 3: Tie-breaker (or if neither is followed): Use original newest first order
+      // Since the initial fetch already ordered by created_at desc,
+      // returning 0 maintains that order for ties.
+      return 0;
+    });
+
+    res.json(allPosts);
+  } catch (error) {
+    console.error("Error fetching prioritized feed:", error);
+    res.status(500).json({ error: 'Unable to fetch feed.' });
+  }
+});
+
 app.patch('/posts/:id', authenticateToken, async (req, res) => {
   const postId = parseInt(req.params.id);
   const { content } = req.body;
