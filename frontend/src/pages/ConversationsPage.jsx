@@ -35,10 +35,14 @@ function ConversationsPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-65px)] bg-white relative">
-      <div className="w-1/3 border-r overflow-y-auto">
-        <div className="p-4 border-b">
-          <button onClick={() => setIsModalOpen(true)} className="w-full bg-blue-500 text-white font-semibold py-2 rounded-lg">
+    // Use semantic background
+    <div className="flex h-[calc(100vh-65px)] bg-background relative">
+      {/* Use semantic border */}
+      <div className="w-1/3 border-r border-primary-border overflow-y-auto">
+        {/* Use semantic border */}
+        <div className="p-4 border-b border-primary-border">
+          {/* Use semantic classes for button */}
+          <button onClick={() => setIsModalOpen(true)} className="w-full bg-accent text-white font-semibold py-2 rounded-lg hover:brightness-90">
             New Message
           </button>
         </div>
@@ -50,7 +54,8 @@ function ConversationsPage() {
           <ChatWindow conversationId={selectedConversationId} />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">Select a conversation to start chatting</p>
+            {/* Use semantic text color */}
+            <p className="text-secondary-text">Select a conversation to start chatting</p>
           </div>
         )}
       </main>
@@ -58,17 +63,25 @@ function ConversationsPage() {
       {/* New Conversation Modal */}
       {isModalOpen && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-xl font-bold mb-4">Start a new message</h2>
+          {/* Use semantic background and text color for modal */}
+          <div className="bg-surface rounded-lg p-6 w-96">
+            <h2 className="text-xl font-bold mb-4 text-primary-text">Start a new message</h2>
             <div className="space-y-2 max-h-80 overflow-y-auto">
-              {mutuals.map(user => (
-                <div key={user.id} onClick={() => handleStartConversation(user.id)} className="flex items-center p-2 rounded-lg hover:bg-gray-100 cursor-pointer">
-                  <img src={user.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${user.username}`} alt={user.username} className="w-10 h-10 rounded-full object-cover" />
-                  <p className="font-semibold ml-3">{user.username}</p>
-                </div>
-              ))}
+              {mutuals.map(mutualUser => {
+                // Added check to avoid errors if user data isn't loaded
+                if (!mutualUser) return null; 
+                const profilePic = mutualUser.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${mutualUser.username}`;
+                return (
+                  // Use semantic hover background and text color
+                  <div key={mutualUser.id} onClick={() => handleStartConversation(mutualUser.id)} className="flex items-center p-2 rounded-lg hover:bg-primary-border cursor-pointer">
+                    <img src={profilePic} alt={mutualUser.username} className="w-10 h-10 rounded-full object-cover" />
+                    <p className="font-semibold ml-3 text-primary-text">{mutualUser.username}</p>
+                  </div>
+                );
+              })}
             </div>
-            <button onClick={() => setIsModalOpen(false)} className="mt-4 w-full bg-gray-200 py-2 rounded-lg">Cancel</button>
+            {/* Use semantic classes for cancel button */}
+            <button onClick={() => setIsModalOpen(false)} className="mt-4 w-full bg-primary-border text-primary-text font-semibold py-2 rounded-lg hover:brightness-95">Cancel</button>
           </div>
         </div>
       )}

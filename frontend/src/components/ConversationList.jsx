@@ -22,20 +22,23 @@ function ConversationList({ onSelectConversation }) {
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Conversations</h1>
+      {/* Use semantic text color */}
+      <h1 className="text-xl font-bold mb-4 text-primary-text">Conversations</h1>
       <div className="space-y-2">
         {conversations.map(convo => {
           const recipient = getRecipient(convo.participants);
-          if (!recipient) return null; // Handle group chats later if needed
+          if (!recipient) return null;
 
           return (
+            // Use semantic hover background
             <div
               key={convo.id}
               onClick={() => onSelectConversation(convo.id)}
-              className="p-2 rounded-lg hover:bg-gray-100 cursor-pointer"
+              className="p-2 rounded-lg hover:bg-primary-border cursor-pointer" // Changed hover class
             >
-              <p className="font-semibold">{recipient.username}</p>
-              <p className="text-sm text-gray-500 truncate">
+              {/* Use semantic text colors */}
+              <p className="font-semibold text-primary-text">{recipient.username}</p>
+              <p className="text-sm text-secondary-text truncate">
                 {convo.messages[0]?.content || "No messages yet"}
               </p>
             </div>

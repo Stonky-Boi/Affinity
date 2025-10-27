@@ -6,15 +6,21 @@ function HomePage() {
   const [posts, setPosts] = useState([]);
   const { token } = useAuth();
   const fetchPosts = () => {
-    fetch('http://localhost:3000/posts')
-      .then(async response => await response.json())
-      .then(data => setPosts(data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))))
-      .catch(error => console.error('Error fetching posts:', error));
+    if (!token) return;
+    // Fetch from the personalized /feed endpoint
+    fetch('http://localhost:3000/feed', {
+      headers: {
+        'Authorization': `Bearer ${token}`, // Add the auth header
+      },
+    })
+      .then(response => response.json())
+      .then(data => setPosts(data)) // Sorting is done on backend
+      .catch(error => console.error('Error fetching feed:', error));
   };
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [token]);
 
   const handleDeletePost = async (postId) => {
     if (!window.confirm("Are you sure you want to delete this post?")) return;
@@ -50,7 +56,6 @@ function HomePage() {
 
   return (
     <div>
-      {}
       <PostList posts={posts} onSavePost={handleSavePost} onDeletePost={handleDeletePost} />
     </div>
   );

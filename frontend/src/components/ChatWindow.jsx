@@ -56,13 +56,19 @@ function ChatWindow({ conversationId }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    // Apply base background
+    <div className="flex flex-col h-full bg-background">
       {/* Message Display Area */}
       <div className="flex-grow p-4 overflow-y-auto">
         <div className="space-y-4">
           {messages.map(msg => (
             <div key={msg.id} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
-              <div className={`p-3 rounded-lg max-w-lg ${msg.sender_id === user.id ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
+              {/* Apply semantic colors to message bubbles */}
+              <div className={`p-3 rounded-lg max-w-lg ${
+                msg.sender_id === user.id
+                  ? 'bg-accent text-white' // Sender's bubble (Blue)
+                  : 'bg-surface text-primary-text' // Recipient's bubble (Gray)
+              }`}>
                 <p className="text-sm">{msg.content}</p>
               </div>
             </div>
@@ -71,16 +77,24 @@ function ChatWindow({ conversationId }) {
       </div>
 
       {/* Message Input Form */}
-      <div className="p-4 border-t">
+      {/* Apply semantic border and background */}
+      <div className="p-4 border-t border-primary-border bg-surface">
         <form onSubmit={handleSendMessage} className="flex gap-2">
+          {/* Apply semantic classes to input */}
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-grow p-2 border rounded-lg"
+            className="flex-grow p-2 border border-primary-border rounded-lg bg-background text-primary-text placeholder-secondary-text"
           />
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Send</button>
+          {/* Apply semantic classes to button */}
+          <button
+            type="submit"
+            className="px-4 py-2 bg-accent text-white font-semibold rounded-lg hover:brightness-90"
+          >
+            Send
+          </button>
         </form>
       </div>
     </div>

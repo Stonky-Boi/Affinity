@@ -1,23 +1,35 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
 :root {
   /* Light Mode Colors */
-  --color-background: #FFFFFF;
-  --color-surface: #F9FAFB; /* Slightly off-white for cards */
-  --color-primary-text: #111827;
-  --color-secondary-text: #6B7280;
-  --color-border: #E5E7EB;
-  --color-accent: #3B82F6;
+  --color-background: 255 255 255;
+  /* White */
+  --color-surface: 249 250 251;
+  /* Gray 50 */
+  --color-primary-text: 17 24 39;
+  /* Gray 900 */
+  --color-secondary-text: 107 114 128;
+  /* Gray 500 */
+  --color-border: 229 231 235;
+  /* Gray 200 */
+  --color-accent: 59 130 246;
+  /* Blue 500 */
 }
 
 .dark {
   /* Dark Mode Colors */
-  --color-background: #111827; /* Dark Gray */
-  --color-surface: #1F2937; /* Slightly lighter gray for cards */
-  --color-primary-text: #F9FAFB;
-  --color-secondary-text: #9CA3AF;
-  --color-border: #374151;
-  --color-accent: #3B82F6; /* Accent color can stay the same */
+  --color-background: 17 24 39;
+  /* Gray 900 */
+  --color-surface: 31 41 55;
+  /* Gray 800 */
+  --color-primary-text: 249 250 251;
+  /* Gray 50 */
+  --color-secondary-text: 156 163 175;
+  /* Gray 400 */
+  --color-border: 55 65 81;
+  /* Gray 700 */
+  --color-accent: 59 130 246;
+  /* Blue 500 */
 }

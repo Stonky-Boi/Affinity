@@ -37,15 +37,21 @@ function CreateCommentForm({ postId, parentId = null, onCommentCreated }) {
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
+      {/* Apply semantic classes for input field */}
       <input
         type="text"
-        className="flex-grow p-2 border rounded-lg text-sm"
+        className="flex-grow p-2 border border-primary-border rounded-lg text-sm bg-background text-primary-text placeholder-secondary-text"
         placeholder="Write a comment..."
         value={content}
         onChange={(e) => setContent(e.target.value)}
         required
       />
-      <button type="submit" className="px-4 py-2 bg-gray-200 rounded-lg text-sm hover:bg-gray-300">
+      {/* Apply semantic classes for the button */}
+      <button
+        type="submit"
+        // Using primary-border as the background for a subtle gray button
+        className="px-4 py-2 bg-primary-border text-primary-text rounded-lg text-sm font-semibold hover:brightness-95" // Slightly darken on hover
+      >
         Send
       </button>
     </form>

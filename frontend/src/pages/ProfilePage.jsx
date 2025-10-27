@@ -44,35 +44,38 @@ function ProfilePage() {
     }
   };
 
+  const inputClasses = "p-2 border border-primary-border rounded-lg bg-background text-primary-text placeholder-secondary-text";
+
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">Edit Your Profile</h1>
+      {/* Use semantic text color */}
+      <h1 className="text-2xl font-bold mb-6 text-primary-text">Edit Your Profile</h1>
       <form onSubmit={handleSave} className="space-y-4 max-w-2xl">
         {/* Personal Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input name="first_name" value={formData.first_name} onChange={handleChange} placeholder="First Name" className="p-2 border rounded-lg" />
-          <input name="last_name" value={formData.last_name} onChange={handleChange} placeholder="Last Name" className="p-2 border rounded-lg" />
+          <input name="first_name" value={formData.first_name} onChange={handleChange} placeholder="First Name" className={inputClasses} />
+          <input name="last_name" value={formData.last_name} onChange={handleChange} placeholder="Last Name" className={inputClasses} />
         </div>
         {/* Bio */}
-        <textarea name="bio" value={formData.bio} onChange={handleChange} placeholder="Your Bio" className="w-full p-2 border rounded-lg" />
+        <textarea name="bio" value={formData.bio} onChange={handleChange} placeholder="Your Bio" className={`w-full ${inputClasses}`} />
         {/* Picture URL and DOB */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input name="picture_url" value={formData.picture_url} onChange={handleChange} placeholder="Profile Picture URL" className="p-2 border rounded-lg" />
-          <input name="date_of_birth" type="date" value={formData.date_of_birth} onChange={handleChange} className="p-2 border rounded-lg" />
+          <input name="picture_url" value={formData.picture_url} onChange={handleChange} placeholder="Profile Picture URL" className={inputClasses} />
+          <input name="date_of_birth" type="date" value={formData.date_of_birth} onChange={handleChange} className={inputClasses} />
         </div>
         {/* Location */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input name="country" value={formData.country} onChange={handleChange} placeholder="Country" className="p-2 border rounded-lg" />
-          <input name="state" value={formData.state} onChange={handleChange} placeholder="State" className="p-2 border rounded-lg" />
-          <input name="city" value={formData.city} onChange={handleChange} placeholder="City" className="p-2 border rounded-lg" />
+          <input name="country" value={formData.country} onChange={handleChange} placeholder="Country" className={inputClasses} />
+          <input name="state" value={formData.state} onChange={handleChange} placeholder="State" className={inputClasses} />
+          <input name="city" value={formData.city} onChange={handleChange} placeholder="City" className={inputClasses} />
         </div>
         {/* Contact */}
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone" className="p-2 border rounded-lg" />
-          <input name="alternate_email" type="email" value={formData.alternate_email} onChange={handleChange} placeholder="Alternate Email" className="p-2 border rounded-lg" />
+          <input name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone" className={inputClasses} />
+          <input name="alternate_email" type="email" value={formData.alternate_email} onChange={handleChange} placeholder="Alternate Email" className={inputClasses} />
         </div>
-
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        {/* Use semantic classes for button */}
+        <button type="submit" className="px-4 py-2 bg-accent text-white font-semibold rounded-lg hover:brightness-90">
           Save Changes
         </button>
       </form>

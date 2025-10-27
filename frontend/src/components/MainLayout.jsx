@@ -1,23 +1,51 @@
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import RightPanel from './RightPanel';
-import { Outlet } from 'react-router-dom'; // 1. Import Outlet
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 function MainLayout() {
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
-    <div className="flex h-screen bg-white">
-      {/* Left Sidebar (persistent) */}
-      <div className="w-1/5 border-r">
-        <Sidebar />
-      </div>
-
-      {/* Main Content (this will change based on the route) */}
-      <main className="w-3/5 overflow-y-auto">
-        <Outlet /> {/* 2. Child routes will be rendered here */}
-      </main>
-
-      {/* Right Panel (persistent) */}
-      <div className="w-1/5 border-l">
-        <RightPanel />
+    <div>
+      {/* Top Navigation Bar - Using semantic classes */}
+      {user && (
+        <nav className="p-4 bg-surface border-b border-primary-border flex justify-between items-center">
+          <Link to="/" className="text-xl font-bold text-accent">Affinity</Link>
+          <div className="flex items-center">
+            <span className="mr-4 font-semibold text-primary-text">Welcome, {user.username}!</span>
+            {/* Dark Mode Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full hover:bg-primary-border text-primary-text" // Use semantic classes
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+            {/* Logout button moved to sidebar */}
+          </div>
+        </nav>
+      )}
+      
+      {/* Main 3-Panel Layout - Using semantic classes */}
+      {/* Adjust height to account for the navbar (approx h-16 or 64px) */}
+      <div className="flex h-[calc(100vh-65px)] bg-background"> 
+        <div className="w-1/5 border-r border-primary-border bg-surface"> {/* Added bg-surface */}
+          <Sidebar />
+        </div>
+        <main className="w-3/5 overflow-y-auto"> {/* Removed bg-background (inherits) */}
+          <Outlet />
+        </main>
+        <div className="w-1/5 border-l border-primary-border bg-surface"> {/* Added bg-surface */}
+          <RightPanel />
+        </div>
       </div>
     </div>
   );

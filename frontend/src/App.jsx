@@ -1,5 +1,4 @@
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
@@ -11,44 +10,28 @@ import ProfilePage from './pages/ProfilePage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import FollowRequestsPage from './pages/FollowRequestsPage';
 
+// We don't need useAuth or useNavigate here anymore,
+// as the top nav bar and logout logic are in MainLayout.
+
 function App() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   return (
-    <div>
-      <nav className="p-4 bg-gray-100 border-b flex justify-between items-center">
-        <Link to="/" className="text-xl font-bold text-blue-600">Affinity</Link>
-        <div>
-          {user ? (
-            <>
-              <span className="mr-4 font-semibold">Welcome, {user.username}!</span>
-              <button onClick={handleLogout} className="font-semibold hover:text-blue-600">Logout</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="mr-4 font-semibold">Login</Link>
-              <Link to="/signup" className="mr-4 font-semibold">Signup</Link>
-            </>
-          )}
-        </div>
-      </nav>
-
+    // Apply base background and text color here using semantic classes
+    // Added transition for smooth theme changes
+    <div className="bg-background text-primary-text min-h-screen transition-colors duration-300">
       <Routes>
+        {/* Public routes don't use MainLayout */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+
+        {/* Protected routes use MainLayout */}
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route path="/" element={<HomePage />} />
           <Route path="/create" element={<CreatePostPage />} />
           <Route path="/conversations" element={<ConversationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/:username" element={<PublicProfilePage />} />
           <Route path="/requests" element={<FollowRequestsPage />} />
+          {/* Ensure this dynamic route is last among the protected ones */}
+          <Route path="/:username" element={<PublicProfilePage />} />
         </Route>
       </Routes>
     </div>
