@@ -33,13 +33,13 @@ function MainLayout() {
       {/* Main 3-Panel Layout - Using semantic classes */}
       {/* Adjust height to account for the navbar (approx h-16 or 64px) */}
       <div className="flex h-[calc(100vh-65px)] bg-background"> 
-        <div className="w-1/5 border-r border-primary-border bg-surface"> {/* Added bg-surface */}
+        <div className="w-1/5 border-r border-primary-border bg-surface overflow-y-auto scrollbar-hide"> {/* Added bg-surface */}
           <Sidebar />
         </div>
-        <main className="w-3/5 overflow-y-auto"> {/* Removed bg-background (inherits) */}
+        <main className="w-3/5 overflow-y-auto scrollbar-hide"> {/* Removed bg-background (inherits) */}
           <Outlet />
         </main>
-        <div className="w-1/5 border-l border-primary-border bg-surface"> {/* Added bg-surface */}
+        <div className="w-1/5 border-l border-primary-border bg-surface overflow-y-auto scrollbar-hide"> {/* Added bg-surface */}
           <RightPanel />
         </div>
       </div>
