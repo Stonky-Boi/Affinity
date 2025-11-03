@@ -9,16 +9,18 @@ function UserList() {
       .then(response => response.json())
       .then(data => setUsers(data))
       .catch(error => console.error('Error fetching users:', error));
-  }, []); // The empty array means this effect runs once when the component mounts
+  }, []);
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Users</h1>
+      {/* Use semantic text color */}
+      <h1 className="text-2xl font-bold mb-4 text-primary-text">Users</h1>
       <ul className="list-disc pl-5">
         {users.map(user => (
           <li key={user.id} className="mb-2">
-            <p className="font-semibold">{user.username}</p>
-            <p className="text-gray-600">{user.email}</p>
+            {/* Use semantic text colors */}
+            <p className="font-semibold text-primary-text">{user.username}</p>
+            <p className="text-secondary-text">{user.email}</p>
           </li>
         ))}
       </ul>

@@ -32,6 +32,12 @@ model User {
 
   followers Follows[] @relation("Following")
   following Follows[] @relation("Follower")
+
+  conversations Conversation[] @relation("Participants")
+  messages      Message[]
+
+  friendshipsA Friendship[] @relation("UserA")
+  friendshipsB Friendship[] @relation("UserB")
 }
 
 model Post {
@@ -41,6 +47,7 @@ model Post {
   visibility String   @default("public") // [cite: 86]
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+  deleted_at DateTime?
 
   author    User @relation(fields: [author_id], references: [id])
   author_id Int
@@ -54,17 +61,22 @@ model Comment {
   content    String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+  deleted_at DateTime?
 
   author    User @relation(fields: [author_id], references: [id])
   author_id Int
 
   post      Post @relation(fields: [post_id], references: [id])
   post_id   Int
+
+  parent    Comment?  @relation("Replies", fields: [parent_id], references: [id])
+  parent_id Int?      // This field is optional
+  replies   Comment[] @relation("Replies")
 }
 
 model Reaction {
   id        Int      @id @default(autoincrement())
-  // reaction_type String   // We can add this later for different emojis
+  reaction_type String?
   created_at DateTime @default(now())
 
   user      User @relation(fields: [user_id], references: [id])
@@ -83,7 +95,48 @@ model Follows {
   following_id Int
   following    User @relation("Following", fields: [following_id], references: [id])
 
+  status String @default("pending") // Can be "pending", "accepted", "declined"
+  
   created_at DateTime @default(now())
 
   @@id([follower_id, following_id])
+}
+
+model Conversation {
+  id           Int       @id @default(autoincrement())
+  name         String?   // Optional name for group chats
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  participants User[]    @relation("Participants")
+  messages     Message[]
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  content    String
+  created_at DateTime @default(now())
+
+  sender    User @relation(fields: [sender_id], references: [id])
+  sender_id Int
+
+  conversation    Conversation @relation(fields: [conversation_id], references: [id])
+  conversation_id Int
+}
+
+model Friendship {
+  user_a_id Int
+  user_a    User @relation("UserA", fields: [user_a_id], references: [id])
+
+  user_b_id Int
+  user_b    User @relation("UserB", fields: [user_b_id], references: [id])
+
+  num_messages Int @default(0)
+  num_reactions Int @default(0)
+  num_comments Int @default(0)
+  friend_score  Int @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@id([user_a_id, user_b_id])
 }
