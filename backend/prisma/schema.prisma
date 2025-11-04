@@ -8,26 +8,26 @@ datasource db {
 }
 
 model User {
-  id                Int      @id @default(autoincrement())
-  username          String   @unique
-  email             String   @unique
-  password          String
-  first_name        String?
-  last_name         String?
-  picture_url       String?
-  bio               String?
-  date_of_birth     DateTime?
-  country           String?
-  state             String?
-  city              String?
-  phone             String?
-  alternate_email   String?  @unique
-  privacy_settings  Json?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id               Int       @id @default(autoincrement())
+  username         String    @unique
+  email            String    @unique
+  password         String
+  first_name       String?
+  last_name        String?
+  picture_url      String?
+  bio              String?
+  date_of_birth    DateTime?
+  country          String?
+  state            String?
+  city             String?
+  phone            String?
+  alternate_email  String?   @unique
+  privacy_settings Json?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  posts Post[]
-  comments Comment[]
+  posts     Post[]
+  comments  Comment[]
   reactions Reaction[]
 
   followers Follows[] @relation("Following")
@@ -41,49 +41,49 @@ model User {
 }
 
 model Post {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   content    String
   media_url  String?
-  visibility String   @default("public") // [cite: 86]
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  visibility String    @default("public")
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
   author    User @relation(fields: [author_id], references: [id])
   author_id Int
 
-  comments Comment[]
+  comments  Comment[]
   reactions Reaction[]
 }
 
 model Comment {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   content    String
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
   author    User @relation(fields: [author_id], references: [id])
   author_id Int
 
-  post      Post @relation(fields: [post_id], references: [id])
-  post_id   Int
+  post    Post @relation(fields: [post_id], references: [id])
+  post_id Int
 
   parent    Comment?  @relation("Replies", fields: [parent_id], references: [id])
-  parent_id Int?      // This field is optional
+  parent_id Int? // This field is optional
   replies   Comment[] @relation("Replies")
 }
 
 model Reaction {
-  id        Int      @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   reaction_type String?
-  created_at DateTime @default(now())
+  created_at    DateTime @default(now())
 
-  user      User @relation(fields: [user_id], references: [id])
-  user_id   Int
+  user    User @relation(fields: [user_id], references: [id])
+  user_id Int
 
-  post      Post @relation(fields: [post_id], references: [id])
-  post_id   Int
+  post    Post @relation(fields: [post_id], references: [id])
+  post_id Int
 
   @@unique([user_id, post_id])
 }
@@ -96,7 +96,7 @@ model Follows {
   following    User @relation("Following", fields: [following_id], references: [id])
 
   status String @default("pending") // Can be "pending", "accepted", "declined"
-  
+
   created_at DateTime @default(now())
 
   @@id([follower_id, following_id])
@@ -104,7 +104,7 @@ model Follows {
 
 model Conversation {
   id           Int       @id @default(autoincrement())
-  name         String?   // Optional name for group chats
+  name         String? // Optional name for group chats
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
   participants User[]    @relation("Participants")
@@ -130,9 +130,9 @@ model Friendship {
   user_b_id Int
   user_b    User @relation("UserB", fields: [user_b_id], references: [id])
 
-  num_messages Int @default(0)
+  num_messages  Int @default(0)
   num_reactions Int @default(0)
-  num_comments Int @default(0)
+  num_comments  Int @default(0)
   friend_score  Int @default(0)
 
   created_at DateTime @default(now())
