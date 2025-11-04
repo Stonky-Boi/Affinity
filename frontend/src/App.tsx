@@ -8,7 +8,7 @@ import ConversationsPage from './pages/ConversationsPage.tsx';
 import MainLayout from './components/MainLayout.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import PublicProfilePage from './pages/PublicProfilePage.tsx';
-import FollowRequestsPage from './pages/FollowRequestsPage.tsx';
+import NotificationsPage from './pages/NotificationsPage.tsx';
 
 function App() {
   return (
@@ -21,7 +21,7 @@ function App() {
           <Route path="/create" element={<CreatePostPage />} />
           <Route path="/conversations" element={<ConversationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/requests" element={<FollowRequestsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/:username" element={<PublicProfilePage />} />
         </Route>
       </Routes>

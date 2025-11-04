@@ -1,11 +1,18 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
+import { Server } from 'socket.io';
+import { RedisClientType } from 'redis';
 
 export const processFollowRequest = async (req: AuthRequest, res: Response) => {
     try {
+        const io = req.app.get('socketio') as Server;
+        const redisClient = req.app.get('redisClient') as any;
         const follower_id = req.user!.userId;
         const following_id = parseInt(req.params.id);
+        if (follower_id === following_id) {
+            return res.status(400).json({ error: "You cannot follow yourself." });
+        }
         const existingFollow = await prisma.follows.findUnique({
             where: { follower_id_following_id: { follower_id, following_id } },
         });
@@ -18,6 +25,18 @@ export const processFollowRequest = async (req: AuthRequest, res: Response) => {
             await prisma.follows.create({
                 data: { follower_id, following_id, status: 'pending' },
             });
+            try {
+                const followedUserSocketId = await redisClient.get(`userSocket:${following_id}`);
+                if (followedUserSocketId) {
+                    const followerUser = await prisma.user.findUnique({ where: { id: follower_id }, select: { username: true } });
+                    io.to(followedUserSocketId).emit('receive_notification', {
+                        message: `${followerUser?.username || 'Someone'} sent you a follow request.`,
+                        type: 'NEW_FOLLOWER'
+                    });
+                }
+            } catch (err) {
+                console.error("Notification emit error (follow req):", err);
+            }
             res.json({ message: 'Follow request sent.' });
         }
     } catch (error: any) {
@@ -43,6 +62,8 @@ export const getPendingRequests = async (req: AuthRequest, res: Response) => {
 
 export const respondToRequest = async (req: AuthRequest, res: Response) => {
     try {
+        const io = req.app.get('socketio') as Server;
+        const redisClient = req.app.get('redisClient') as any;
         const currentUserId = req.user!.userId;
         const { follower_id, newStatus } = req.body;
         if (newStatus !== 'accepted' && newStatus !== 'declined') {
@@ -55,6 +76,17 @@ export const respondToRequest = async (req: AuthRequest, res: Response) => {
                 },
                 data: { status: 'accepted' },
             });
+            try {
+                const followerSocketId = await redisClient.get(`userSocket:${follower_id}`);
+                if (followerSocketId) {
+                    io.to(followerSocketId).emit('receive_notification', {
+                        message: `${req.user!.username} accepted your follow request.`, // We need to fetch username, but this is ok
+                        type: 'FOLLOW_ACCEPTED'
+                    });
+                }
+            } catch (err) {
+                console.error("Notification emit error (follow accept):", err);
+            }
             res.json({ message: 'Follow request accepted.' });
         } else {
             await prisma.follows.delete({

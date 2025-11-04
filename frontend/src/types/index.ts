@@ -95,6 +95,12 @@ export interface ApiError {
 
 export type UserProfileResponse = UserProfile | ApiError;
 
+export interface Notification {
+  message: string;
+  type: string;
+  timestamp: Date;
+}
+
 export interface Account {
   user: User;
   token: string;
@@ -108,6 +114,10 @@ export interface AuthContextType {
   signup: (username: string, email: string, password: string) => Promise<void>;
   logout: (userIdToLogout?: number) => void;
   switchAccount: (userIdToSwitchTo: number) => void;
+  
+  socket: AppSocket | null;
+  notifications: Notification[];
+  clearNotifications: () => void;
 }
 
 export type Theme = 'light' | 'dark';
@@ -119,9 +129,11 @@ export interface ThemeContextType {
 
 export interface ServerToClientEvents {
   receive_message: (message: Message) => void;
+  receive_notification: (notification: { message: string, type: string }) => void;
 }
 
 export interface ClientToServerEvents {
+  authenticate: (token: string) => void;
   join_conversation: (conversationId: string) => void;
   send_message: (messageData: NewMessageData) => void;
 }

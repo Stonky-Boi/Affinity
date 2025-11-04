@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import PostList from '../components/PostList';
 import UserCard from '../components/UserCard';
 import { SkeletonLoader, PostSkeleton } from '../components/SkeletonLoader';
@@ -12,6 +13,7 @@ function PublicProfilePage() {
   const [followers, setFollowers] = useState<FollowData[]>([]);
   const [following, setFollowing] = useState<FollowData[]>([]);
   const { username } = useParams();
+  const { user } = useAuth();
 
   useEffect(() => {
     setLoading(true);
@@ -51,6 +53,8 @@ function PublicProfilePage() {
 
   if (!profile) return <div className="p-8"><h2 className="text-primary-text">User not found: {username}</h2></div>;
 
+  const isMyProfile = user && user.username === username;
+
   const profilePic = profile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`;
 
   const tabButtonClasses = (tabName: PublicProfilePageView) =>
@@ -70,6 +74,13 @@ function PublicProfilePage() {
         <h1 className="text-3xl font-bold text-primary-text">{profile.first_name || profile.username}</h1>
         <p className="text-secondary-text">@{profile.username}</p>
         <p className="mt-4 text-primary-text">{profile.bio || "This user hasn't written a bio yet."}</p>
+        {isMyProfile && (
+          <Link to="/profile">
+            <button className="mt-4 px-4 py-2 bg-primary-border text-primary-text font-semibold rounded-lg hover:brightness-95">
+              Edit Profile
+            </button>
+          </Link>
+        )}
       </div>
 
       <div className="border-b border-primary-border flex justify-around bg-surface">

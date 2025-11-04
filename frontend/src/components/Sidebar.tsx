@@ -1,14 +1,22 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { Home, PlusSquare, Bell, MessageSquare, User, LogOut, Users } from 'lucide-react';
 import { useState } from 'react';
 
 function Sidebar() {
-  const { user, logout, accounts, switchAccount } = useAuth();
+  const { user, logout, accounts, switchAccount, notifications } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
+
+  const handleNotificationsClick = () => {
+    navigate('/notifications');
+  };
 
   const handleLogout = () => {
     logout();
@@ -21,11 +29,11 @@ function Sidebar() {
   };
 
   const navItems = [
-    { Icon: Home, name: 'Home', path: '/' },
-    { Icon: PlusSquare, name: 'Create Post', path: '/create' },
-    { Icon: Bell, name: 'Requests', path: '/requests' },
-    { Icon: MessageSquare, name: 'Conversations', path: '/conversations' },
-    { Icon: User, name: 'My Profile', path: '/profile' },
+    { Icon: Home, name: 'Home', path: '/', action: () => handleNavigate('/') },
+    { Icon: PlusSquare, name: 'Create Post', path: '/create', action: () => handleNavigate('/create') },
+    { Icon: Bell, name: 'Notifications', path: '/notifications', action: handleNotificationsClick, badge: notifications.length },
+    { Icon: MessageSquare, name: 'Conversations', path: '/conversations', action: () => handleNavigate('/conversations') },
+    { Icon: User, name: 'My Profile', path: `/${user?.username}`, action: () => handleNavigate(`/${user?.username}`) },
   ];
 
   return (
@@ -38,16 +46,22 @@ function Sidebar() {
               const isActive = currentPath === item.path;
               return (
                 <li key={item.name} className="mb-4">
-                  <Link
-                    to={item.path}
-                    className={`flex items-center p-2 text-lg rounded-lg transition-colors duration-200 ${isActive
+                  <button
+                    onClick={item.action}
+                    className={`flex items-center p-2 text-lg rounded-lg transition-colors duration-200 w-full ${isActive
                       ? 'bg-accent text-white font-bold shadow-md'
                       : 'font-semibold hover:bg-primary-border'
                       }`}
                   >
                     <NavIcon size={24} className="mr-4 flex-shrink-0" />
-                    <span>{item.name}</span>
-                  </Link>
+                    <span className="flex-grow text-left">{item.name}</span>
+
+                    {item.badge && item.badge > 0 && (
+                      <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {item.badge > 9 ? '9+' : item.badge}
+                      </span>
+                    )}
+                  </button>
                 </li>
               );
             })}

@@ -1,5 +1,6 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import { User, Account, AuthContextType, ProviderProps } from '../types/index';
+import { io } from 'socket.io-client';
+import { User, Account, AuthContextType, ProviderProps, AppSocket, Notification } from '../types/index';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -21,10 +22,53 @@ export function AuthProvider({ children }: ProviderProps) {
   const user = activeAccount?.user || null;
   const token = activeAccount?.token || null;
 
+  const [socket, setSocket] = useState<AppSocket | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   useEffect(() => {
     localStorage.setItem('authAccounts', JSON.stringify(accounts));
     localStorage.setItem('authActiveIndex', activeIndex.toString());
   }, [accounts, activeIndex]);
+
+  useEffect(() => {
+    if (token && user) {
+      // 1. Connect to the socket server
+      const newSocket: AppSocket = io('http://localhost:3000');
+
+      // 2. Authenticate this socket connection
+      newSocket.emit('authenticate', token);
+
+      // 3. Listen for notifications
+      newSocket.on('receive_notification', (notificationData) => {
+        console.log('New notification:', notificationData.message);
+
+        // Create a new notification object with a timestamp
+        const newNotification: Notification = {
+          ...notificationData,
+          timestamp: new Date()
+        };
+
+        // Add the new notification to the *top* of the list
+        setNotifications(prev => [newNotification, ...prev]);
+      });
+
+      setSocket(newSocket);
+
+      // 4. Disconnect on logout (cleanup)
+      return () => {
+        newSocket.disconnect();
+      };
+    } else {
+      // No token, ensure any existing socket is disconnected
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+    }
+  }, [token, user]); // Re-run when user logs in or out
+
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
 
   const login = (userData: User, userToken: string) => {
     const existingAccountIndex = accounts.findIndex((acc: Account) => acc.user.id === userData.id);
@@ -95,7 +139,10 @@ export function AuthProvider({ children }: ProviderProps) {
     login,
     signup,
     logout,
-    switchAccount
+    switchAccount,
+    socket,
+    notifications,
+    clearNotifications
   };
 
   return <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>;

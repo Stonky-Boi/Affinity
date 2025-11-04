@@ -1,14 +1,39 @@
 import { Server } from 'socket.io';
 import { updateFriendship } from '../services/friendship.service';
 import prisma from '../db';
+import redisClient from '../redis';
+import jwt from 'jsonwebtoken';
+
+interface AuthenticatedSocket extends NodeJS.EventEmitter {
+    id: string;
+    userId?: number;
+    join(room: string): void;
+    on(event: string, listener: (...args: any[]) => void): this;
+    emit(event: string, ...args: any[]): boolean;
+}
 
 export const handleSocketEvents = (io: Server) => {
-    io.on('connection', (socket: any) => {
-        console.log('a user connected:', socket.id);
+    io.on('connection', (socket: AuthenticatedSocket) => {
+        console.log(`Socket connected: ${socket.id}`);
 
-        socket.on('join_conversation', (conversationId: any) => {
-            socket.join(conversationId);
-            console.log(`User ${socket.id} joined conversation ${conversationId}`);
+        socket.on('authenticate', async (token: string) => {
+            if (!token) {
+                return console.error("Socket Auth: No token provided");
+            }
+            try {
+                const payload = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number };
+                const userId = payload.userId;
+
+                // Attach userId to the socket object for easy lookup on disconnect
+                socket.userId = userId;
+
+                // Store in Redis: "userSocket:123" -> "abcSocketIdXYZ"
+                await redisClient.set(`userSocket:${userId}`, socket.id);
+                console.log(`Socket Auth: User ${userId} mapped to socket ${socket.id}`);
+
+            } catch (err) {
+                console.error("Socket Auth: Invalid token", err);
+            }
         });
 
         socket.on('send_message', async (data: any) => {
@@ -44,8 +69,17 @@ export const handleSocketEvents = (io: Server) => {
             }
         });
 
-        socket.on('disconnect', () => {
-            console.log('user disconnected:', socket.id);
+        socket.on('disconnect', async () => {
+            console.log(`Socket disconnected: ${socket.id}`);
+            if (socket.userId) {
+                try {
+                    // Remove the mapping from Redis
+                    await redisClient.del(`userSocket:${socket.userId}`);
+                    console.log(`Socket Cache: Removed user ${socket.userId}`);
+                } catch (err) {
+                    console.error("Redis DEL error on disconnect:", err);
+                }
+            }
         });
     });
 };

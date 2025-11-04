@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
 import { updateFriendship } from '../services/friendship.service';
+import { Server } from 'socket.io';
+import { RedisClientType } from 'redis';
 
 export const createPost = async (req: AuthRequest, res: Response) => {
     const author_id = req.user!.userId;
@@ -137,6 +139,8 @@ export const getReactions = async (req: Request, res: Response) => {
 
 export const processReaction = async (req: AuthRequest, res: Response) => {
     try {
+        const io = req.app.get('socketio') as Server;
+        const redisClient = req.app.get('redisClient') as any;
         const postId = parseInt(req.params.postId);
         if (isNaN(postId)) {
             return res.status(400).json({ error: "Invalid Post ID." });
@@ -167,6 +171,18 @@ export const processReaction = async (req: AuthRequest, res: Response) => {
             const post = await prisma.post.findUnique({ where: { id: postId } });
             if (post && post.author_id !== userId) {
                 await updateFriendship(userId, post.author_id, { num_reactions: { increment: 1 } });
+                try {
+                    const authorSocketId = await redisClient.get(`userSocket:${post.author_id}`);
+                    if (authorSocketId) {
+                        const reactionAuthor = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+                        io.to(authorSocketId).emit('receive_notification', {
+                            message: `${reactionAuthor?.username || 'Someone'} reacted to your post.`,
+                            type: 'NEW_REACTION'
+                        });
+                    }
+                } catch (err) {
+                    console.error("Notification emit error (reaction):", err);
+                }
             }
             return res.json(newReaction);
         }

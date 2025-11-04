@@ -1,18 +1,28 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { io } from 'socket.io-client';
-import type { Message, NewMessageData, ChatWindowProps, AppSocket } from '../types';
+import type { Message, NewMessageData, ChatWindowProps } from '../types';
 
 function ChatWindow({ conversationId }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const { user, token } = useAuth();
 
-  const socketRef = useRef<AppSocket | null>(null);
+  const { user, token, socket } = useAuth();
+  const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
+  // Scroll to bottom when messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(scrollToBottom, [messages]);
+
+  // 1. Fetch initial messages
   useEffect(() => {
     if (!conversationId || !token) return;
+
+    // Clear messages when convo changes
+    setMessages([]);
+
     fetch(`/api/conversations/${conversationId}/messages`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
@@ -20,27 +30,36 @@ function ChatWindow({ conversationId }: ChatWindowProps) {
       .then((data: Message[]) => setMessages(data));
   }, [conversationId, token]);
 
+  // 2. Set up socket listeners
   useEffect(() => {
-    if (!conversationId) return;
+    // Only run if the global socket exists
+    if (!socket || !conversationId) return;
 
-    const socket: AppSocket = io('http://localhost:3000');
-    socketRef.current = socket;
-
+    // Join the specific chat room
     socket.emit('join_conversation', conversationId);
 
-    socket.on('receive_message', (incomingMessage: Message) => {
-      setMessages(prevMessages => [...prevMessages, incomingMessage]);
-    });
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
+    // Listener for new messages
+    const handleReceiveMessage = (incomingMessage: Message) => {
+      // Only add message if it belongs to this conversation
+      if (String(incomingMessage.conversation_id) === String(conversationId)) {
+        setMessages(prevMessages => [...prevMessages, incomingMessage]);
+      }
     };
-  }, [conversationId]);
 
+    // Register the listener
+    socket.on('receive_message', handleReceiveMessage);
+
+    // Cleanup: remove the listener when component unmounts
+    // or when conversationId changes
+    return () => {
+      socket.off('receive_message', handleReceiveMessage);
+    };
+  }, [socket, conversationId]); // Re-run if socket or conversation changes
+
+  // 3. Send a message
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === '' || !user) return;
+    if (newMessage.trim() === '' || !user || !socket) return;
 
     const messageData: NewMessageData = {
       content: newMessage,
@@ -48,7 +67,8 @@ function ChatWindow({ conversationId }: ChatWindowProps) {
       conversation_id: conversationId,
     };
 
-    socketRef.current?.emit('send_message', messageData);
+    // Use the global socket to send
+    socket.emit('send_message', messageData);
     setNewMessage('');
   };
 
