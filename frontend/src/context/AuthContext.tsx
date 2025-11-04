@@ -1,26 +1,5 @@
-import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-
-interface User {
-  id: number;
-  username: string;
-  email: string;
-  picture_url?: string;
-}
-
-interface Account {
-  user: User;
-  token: string;
-}
-
-interface AuthContextType {
-  token: string | null;
-  user: User | null;
-  accounts: Account[];
-  login: (userData: User, userToken: string) => void;
-  signup: (username: string, email: string, password: string) => Promise<void>;
-  logout: (userIdToLogout?: number) => void;
-  switchAccount: (userIdToSwitchTo: number) => void;
-}
+import { createContext, useState, useContext, useEffect } from 'react';
+import { User, Account, AuthContextType, ProviderProps } from '../types/index';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -34,11 +13,7 @@ const getActiveIndex = (): number => {
   return index ? parseInt(index, 10) : -1;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: ProviderProps) {
   const [accounts, setAccounts] = useState<Account[]>(getStoredAccounts);
   const [activeIndex, setActiveIndex] = useState<number>(getActiveIndex);
 
@@ -88,7 +63,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signup = async (username: string, email: string, password: string) => {
-    const signupResponse = await fetch('http://localhost:3000/auth/signup', {
+    const signupResponse = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password }),
@@ -99,7 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw new Error(errorData.error || 'Failed to sign up');
     }
 
-    const loginResponse = await fetch('http://localhost:3000/auth/login', {
+    const loginResponse = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),

@@ -11,7 +11,7 @@ function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
     e.preventDefault();
     if (!user) return;
 
-    fetch('http://localhost:3000/posts', {
+    fetch('/api/posts', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

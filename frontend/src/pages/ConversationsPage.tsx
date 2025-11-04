@@ -18,7 +18,7 @@ function ConversationsPage() {
 
   useEffect(() => {
     if (isModalOpen && token) {
-      fetch('http://localhost:3000/users/mutuals', {
+      fetch('/api/users/mutuals', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -35,7 +35,7 @@ function ConversationsPage() {
     const participantIds = selectedParticipants.map(p => p.id);
 
     try {
-      const response = await fetch('http://localhost:3000/conversations', {
+      const response = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({

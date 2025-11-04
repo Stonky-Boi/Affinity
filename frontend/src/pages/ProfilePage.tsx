@@ -37,7 +37,7 @@ function ProfilePage() {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/users/profile', {
+      const response = await fetch('/api/users/profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -55,14 +55,14 @@ function ProfilePage() {
 
   useEffect(() => {
     if (userProfile && token) {
-      fetch(`http://localhost:3000/users/${userProfile.id}/followers`, {
+      fetch(`/api/users/${userProfile.id}/followers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
         .then((data: FollowData[]) => setFollowers(data))
         .catch(error => console.error("Error fetching followers:", error));
 
-      fetch(`http://localhost:3000/users/${userProfile.id}/following`, {
+      fetch(`/api/users/${userProfile.id}/following`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())

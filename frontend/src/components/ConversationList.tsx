@@ -8,7 +8,7 @@ function ConversationList({ onSelectConversation }: ConversationListProps) {
 
   useEffect(() => {
     if (!token) return;
-    fetch('http://localhost:3000/conversations', {
+    fetch('/api/conversations', {
       headers: { 'Authorization': `Bearer ${token}` },
     })
       .then(res => res.json())

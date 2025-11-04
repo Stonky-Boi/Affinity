@@ -9,7 +9,7 @@ function FollowRequestsPage() {
 
   const fetchRequests = () => {
     if (!token) return;
-    fetch('http://localhost:3000/follows/pending', {
+    fetch('/api/follows/pending', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -21,7 +21,7 @@ function FollowRequestsPage() {
   }, [token]);
 
   const handleResponse = (followerId: string | number, newStatus: 'accepted' | 'declined') => {
-    fetch('http://localhost:3000/follows/respond', {
+    fetch('/api/follows/respond', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

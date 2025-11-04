@@ -16,7 +16,7 @@ function RightPanel() {
 
   const fetchOutgoingFollows = () => {
     if (!user || !token) return;
-    fetch(`http://localhost:3000/users/${user.id}/following`, {
+    fetch(`/api/users/${user.id}/following`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -29,7 +29,7 @@ function RightPanel() {
 
   useEffect(() => {
     if (!searchUserParam && token) {
-      fetch('http://localhost:3000/users', { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch('/api/users', { headers: { 'Authorization': `Bearer ${token}` } })
         .then(res => res.json())
         .then((data: User[]) => setSuggestedUsers(data))
         .catch(error => console.error("Error fetching suggested users:", error));
@@ -43,7 +43,7 @@ function RightPanel() {
       return;
     }
     if (!token) return;
-    fetch(`http://localhost:3000/users/search?q=${searchQuery}`, {
+    fetch(`/api/users/search?q=${searchQuery}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -53,7 +53,7 @@ function RightPanel() {
 
   useEffect(() => {
     if (searchUserParam) {
-      fetch(`http://localhost:3000/users/${searchUserParam}`)
+      fetch(`/api/users/${searchUserParam}`)
         .then(res => res.json())
         .then((data: UserProfileResponse) => {
           if ('error' in data) {
@@ -70,7 +70,7 @@ function RightPanel() {
 
   useEffect(() => {
     if (selectedUserProfile && token) {
-      fetch(`http://localhost:3000/users/${selectedUserProfile.username}/mutuals-with-viewer`, {
+      fetch(`/api/users/${selectedUserProfile.username}/mutuals-with-viewer`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -83,7 +83,7 @@ function RightPanel() {
 
   const handleFollowToggle = (userIdToToggle: number) => {
     if (!user || !token) return;
-    fetch(`http://localhost:3000/users/${userIdToToggle}/follow`, {
+    fetch(`/api/follows/user/${userIdToToggle}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ follower_id: user.id })
@@ -91,7 +91,7 @@ function RightPanel() {
       .then(() => {
         fetchOutgoingFollows();
         if (searchUserParam) {
-          fetch(`http://localhost:3000/users/${searchUserParam}`)
+          fetch(`/api/users/${searchUserParam}`)
             .then(res => res.json())
             .then((data: UserProfileResponse) => {
               if ('error' in data) {

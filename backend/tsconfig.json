@@ -13,8 +13,6 @@
     ]
   },
   "include": [
-    "src/**/*",
-    "src/FriendshipLogic.ts",
-    "src/middleware"
+    "src/*"
   ]
 }

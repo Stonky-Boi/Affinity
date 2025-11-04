@@ -10,7 +10,7 @@ function CreateCommentForm({ postId, parentId = null, onCommentCreated }: Create
     e.preventDefault();
     if (!user) return;
 
-    fetch(`http://localhost:3000/posts/${postId}/comments`, {
+    fetch(`/api/comments/post/${postId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,0 +1,170 @@
+import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
+import prisma from '../db';
+
+export const getAllUsers = async (req: Request, res: Response) => {
+    try {
+        const users = await prisma.user.findMany();
+        res.json(users);
+    } catch (error: any) {
+        res.status(500).json({ error: 'Unable to fetch users' });
+    }
+};
+
+export const searchUsers = async (req: AuthRequest, res: Response) => {
+    const { q } = req.query;
+    if (!q) {
+        return res.json([]);
+    }
+    try {
+        const users = await prisma.user.findMany({
+            where: {
+                username: {
+                    contains: q as string,
+                    mode: 'insensitive',
+                },
+            },
+        });
+        res.json(users);
+    } catch (error: any) {
+        res.status(500).json({ error: 'Unable to perform search.' });
+    }
+};
+
+export const getMutuals = async (req: AuthRequest, res: Response) => {
+    const currentUserId = req.user!.userId;
+    try {
+        const followingResult = await prisma.follows.findMany({
+            where: { follower_id: currentUserId },
+            select: { following_id: true }
+        });
+        const followingIds = followingResult.map((f: any) => f.following_id);
+
+        const mutualsResult = await prisma.follows.findMany({
+            where: {
+                following_id: currentUserId,
+                follower_id: { in: followingIds }
+            },
+            include: { follower: true }
+        });
+
+        const mutualUsers = mutualsResult.map((m: any) => m.follower);
+        res.json(mutualUsers);
+    } catch (error: any) {
+        res.status(500).json({ error: "Unable to fetch mutuals." });
+    }
+};
+
+export const getMutualsWithViewer = async (req: AuthRequest, res: Response) => {
+    const viewerId = req.user!.userId;
+    const profileUsername = req.params.username;
+    try {
+        const profileUser = await prisma.user.findUnique({
+            where: { username: profileUsername },
+            select: { id: true }
+        });
+        if (!profileUser) return res.status(404).json({ error: 'Profile user not found.' });
+        const profileUserId = profileUser.id;
+
+        const viewerFollowingResult = await prisma.follows.findMany({
+            where: { follower_id: viewerId, status: 'accepted' },
+            select: { following_id: true }
+        });
+        const viewerFollowingIds = new Set(viewerFollowingResult.map((f: any) => f.following_id));
+
+        const profileFollowingResult = await prisma.follows.findMany({
+            where: { follower_id: profileUserId, status: 'accepted' },
+            select: { following_id: true }
+        });
+        const profileFollowingIds = new Set(profileFollowingResult.map((f: any) => f.following_id));
+
+        const mutualFollowingIds = [...viewerFollowingIds].filter(id => profileFollowingIds.has(id));
+
+        const mutualUsers = await prisma.user.findMany({
+            where: { id: { in: mutualFollowingIds } },
+            select: { id: true, username: true, picture_url: true }
+        });
+        res.json(mutualUsers);
+    } catch (error: any) {
+        console.error("Error fetching mutuals with viewer:", error);
+        res.status(500).json({ error: "Unable to fetch mutual connections." });
+    }
+};
+
+export const getUserProfile = async (req: Request, res: Response) => {
+    const { username } = req.params;
+    try {
+        const user = await prisma.user.findUnique({
+            where: { username },
+            select: {
+                id: true,
+                username: true,
+                first_name: true,
+                last_name: true,
+                picture_url: true,
+                bio: true,
+                created_at: true,
+                posts: {
+                    where: { deleted_at: null },
+                    orderBy: { created_at: 'desc' },
+                    include: { author: true }
+                },
+            }
+        });
+        if (!user) return res.status(404).json({ error: 'User not found.' });
+        res.json(user);
+    } catch (error: any) {
+        res.status(500).json({ error: 'Unable to fetch user profile.' });
+    }
+};
+
+export const updateUserProfile = async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.userId;
+    const {
+        first_name, last_name, bio, picture_url, date_of_birth,
+        country, state, city, phone, alternate_email
+    } = req.body;
+    try {
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                first_name, last_name, bio, picture_url,
+                date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
+                country, state, city, phone, alternate_email
+            },
+        });
+        const { password, ...safeUser } = updatedUser;
+        res.json(safeUser);
+    } catch (error: any) {
+        if (error.code === 'P2002') {
+            return res.status(409).json({ error: "Alternate email is already in use." });
+        }
+        res.status(500).json({ error: "Unable to update profile." });
+    }
+};
+
+export const getFollowers = async (req: Request, res: Response) => {
+    try {
+        const user_id = parseInt(req.params.id);
+        const followers = await prisma.follows.findMany({
+            where: { following_id: user_id, status: 'accepted' },
+            include: { follower: true },
+        });
+        res.json(followers);
+    } catch (error: any) {
+        res.json({ error: 'Unable to fetch followers' });
+    }
+};
+
+export const getFollowing = async (req: Request, res: Response) => {
+    try {
+        const user_id = parseInt(req.params.id);
+        const following = await prisma.follows.findMany({
+            where: { follower_id: user_id },
+            include: { following: true },
+        });
+        res.json(following);
+    } catch (error: any) {
+        res.status(500).json({ error: 'Error fetching following list.' });
+    }
+};

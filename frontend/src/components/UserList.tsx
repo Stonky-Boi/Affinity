@@ -5,7 +5,7 @@ function UserList() {
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    fetch('http://localhost:3000/users')
+    fetch('/api/users')
       .then(response => response.json())
       .then((data: User[]) => setUsers(data))
       .catch(error => console.error('Error fetching users:', error));

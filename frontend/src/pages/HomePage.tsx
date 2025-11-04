@@ -18,8 +18,8 @@ function HomePage() {
     setIsLoading(true);
 
     const url = searchUser
-      ? `http://localhost:3000/users/${searchUser}`
-      : `http://localhost:3000/feed`;
+      ? `/api/users/${searchUser}`
+      : `/api/posts/feed`;
 
     fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(response => response.json())
@@ -45,7 +45,7 @@ function HomePage() {
     if (!window.confirm("Are you sure you want to delete this post?")) return;
 
     try {
-      await fetch(`http://localhost:3000/posts/${postId}`, {
+      await fetch(`/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -59,7 +59,7 @@ function HomePage() {
 
   const handleSavePost = async (postId: string | number, newContent: string) => {
     try {
-      await fetch(`http://localhost:3000/posts/${postId}`, {
+      await fetch(`/api/posts/${postId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

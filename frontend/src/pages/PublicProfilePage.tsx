@@ -15,7 +15,7 @@ function PublicProfilePage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`http://localhost:3000/users/${username}`)
+    fetch(`/api/users/${username}`)
       .then(res => res.json())
       .then(data => {
         if (data.error) {
@@ -23,8 +23,8 @@ function PublicProfilePage() {
         } else {
           const profileData = data as UserProfile;
           setProfile(profileData);
-          fetch(`http://localhost:3000/users/${profileData.id}/followers`).then(res => res.json()).then((d: FollowData[]) => setFollowers(d));
-          fetch(`http://localhost:3000/users/${profileData.id}/following`).then(res => res.json()).then((d: FollowData[]) => setFollowing(d));
+          fetch(`/api/users/${profileData.id}/followers`).then(res => res.json()).then((d: FollowData[]) => setFollowers(d));
+          fetch(`/api/users/${profileData.id}/following`).then(res => res.json()).then((d: FollowData[]) => setFollowing(d));
         }
         setLoading(false);
       });

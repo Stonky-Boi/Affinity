@@ -10,7 +10,7 @@ function CommentSection({ postId }: CommentSectionProps) {
 
   const fetchComments = () => {
     if (!postId) return;
-    fetch(`http://localhost:3000/posts/${postId}/comments`)
+    fetch(`/api/comments/post/${postId}`)
       .then(response => response.json())
       .then((data: Comment[]) => setComments(data))
       .catch(error => console.error('Error fetching comments:', error));
@@ -19,7 +19,7 @@ function CommentSection({ postId }: CommentSectionProps) {
   useEffect(() => { fetchComments(); }, [postId]);
 
   const handleSaveComment = async (commentId: string | number, newContent: string) => {
-    await fetch(`http://localhost:3000/comments/${commentId}`, {
+    await fetch(`/api/comments/${commentId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ content: newContent }),
@@ -29,7 +29,7 @@ function CommentSection({ postId }: CommentSectionProps) {
 
   const handleDeleteComment = async (commentId: string | number) => {
     if (!window.confirm("Delete this comment?")) return;
-    await fetch(`http://localhost:3000/comments/${commentId}`, {
+    await fetch(`/api/comments/${commentId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     });

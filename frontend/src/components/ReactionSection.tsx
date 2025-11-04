@@ -39,7 +39,7 @@ function ReactionSection({ postId }: ReactionSectionProps) {
 
   const fetchReactions = () => {
     if (!postId) return;
-    fetch(`http://localhost:3000/posts/${postId}/reactions`)
+    fetch(`/api/posts/${postId}/reactions`)
       .then(res => res.json())
       .then((data: Reaction[]) => setReactions(data))
       .catch(error => console.error("Error fetching reactions:", error));
@@ -51,7 +51,7 @@ function ReactionSection({ postId }: ReactionSectionProps) {
 
   const handleReact = (reactionType: ReactionKey) => {
     if (!user || !token) return;
-    fetch(`http://localhost:3000/posts/${postId}/reactions`, {
+    fetch(`/api/posts/${postId}/reactions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ reaction_type: reactionType }),

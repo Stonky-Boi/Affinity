@@ -13,7 +13,7 @@ function ChatWindow({ conversationId }: ChatWindowProps) {
 
   useEffect(() => {
     if (!conversationId || !token) return;
-    fetch(`http://localhost:3000/conversations/${conversationId}/messages`, {
+    fetch(`/api/conversations/${conversationId}/messages`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
       .then(res => res.json())
