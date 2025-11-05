@@ -3,7 +3,7 @@ import { useSearchParams, useLocation } from 'react-router-dom';
 import PostList from '../components/PostList';
 import { useAuth } from '../context/AuthContext';
 import { PostSkeleton } from '../components/SkeletonLoader';
-import type { Post, UserProfile } from '../types';
+import type { Post, UserProfile, FeedType } from '../types';
 
 function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -13,6 +13,7 @@ function HomePage() {
   const [searchParams] = useSearchParams();
   const searchUser = searchParams.get('searchUser');
   const location = useLocation();
+  const [feedType, setFeedType] = useState<FeedType>('algorithmic');
 
   const fetchPosts = () => {
     if (!token) return;
@@ -20,7 +21,7 @@ function HomePage() {
     setError(null);
     const url = searchUser
       ? `/api/users/${searchUser}`
-      : `/api/posts/feed`;
+      : `/api/posts/feed?sort=${feedType}`;
     fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(response => {
         if (!response.ok) {
@@ -47,7 +48,7 @@ function HomePage() {
 
   useEffect(() => {
     fetchPosts();
-  }, [token, searchUser, location.pathname]);
+  }, [token, searchUser, location.pathname, feedType]);
 
   const handleDeletePost = async (postId: string | number) => {
     if (!window.confirm("Are you sure you want to delete this post?")) return;
@@ -80,8 +81,31 @@ function HomePage() {
     }
   };
 
+  const getTabClass = (type: FeedType) => {
+    return `w-1/2 py-3 text-center font-semibold transition-colors ${feedType === type
+      ? 'text-accent border-b-2 border-accent'
+      : 'text-secondary-text hover:bg-primary-border/50'
+      }`;
+  };
+
   return (
     <div>
+      {!searchUser && (
+        <div className="flex border-b border-primary-border bg-surface">
+          <button
+            onClick={() => setFeedType('algorithmic')}
+            className={getTabClass('algorithmic')}
+          >
+            For You
+          </button>
+          <button
+            onClick={() => setFeedType('chronological')}
+            className={getTabClass('chronological')}
+          >
+            Following
+          </button>
+        </div>
+      )}
       {error && (
         <div className="p-8 text-center">
           <p className="p-4 bg-red-500/10 text-red-500 border border-red-500 rounded-lg">{error}</p>

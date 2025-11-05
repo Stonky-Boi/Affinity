@@ -41,17 +41,41 @@ export const getAllPosts = async (req: Request, res: Response) => {
 
 export const getFeed = async (req: AuthRequest, res: Response) => {
     const currentUserId = req.user!.userId;
-    let blockedUserIds: number[] = [];
-    if (currentUserId) {
-        blockedUserIds = await getBlockedUserIds(currentUserId);
-    }
+    const { sort } = req.query; // Get the sort preference
     try {
+        // Get Blocked IDs (we already did this)
+        const blockedUserIds = await getBlockedUserIds(currentUserId);
+        // Get IDs of users the current user follows ---
+        const following = await prisma.follows.findMany({
+            where: {
+                follower_id: currentUserId,
+                status: 'accepted'
+            },
+            select: { following_id: true }
+        });
+        // Create a list of all IDs to show: people I follow, plus myself
+        const followingIds = following.map(f => f.following_id);
+        const feedUserIds = [...followingIds, currentUserId];
+        // Fetch ONLY posts from the allowed user list
+        const posts = await prisma.post.findMany({
+            where: {
+                deleted_at: null,
+                author_id: {
+                    in: feedUserIds, // <-- Filter for followed users
+                    notIn: blockedUserIds // <-- Filter for blocked users
+                }
+            },
+            include: { author: true },
+            orderBy: { created_at: 'desc' }, // <-- Always get newest first
+        });
+        // If user wants a simple chronological feed, return now.
+        if (sort === 'chronological') {
+            return res.json(posts);
+        }
+        // Run your existing Algorithmic Sort ---
         const friendships = await prisma.friendship.findMany({
             where: {
-                OR: [
-                    { user_a_id: currentUserId },
-                    { user_b_id: currentUserId },
-                ],
+                OR: [{ user_a_id: currentUserId }, { user_b_id: currentUserId }],
             },
         });
         const friendshipScores = new Map<number, number>();
@@ -59,44 +83,28 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
             const otherUserId = f.user_a_id === currentUserId ? f.user_b_id : f.user_a_id;
             friendshipScores.set(otherUserId, f.friend_score || 0);
         });
-
-        const allPosts = await prisma.post.findMany({
-            where: {
-                deleted_at: null,
-                author_id: { notIn: blockedUserIds }
-            },
-            include: { author: true },
-            orderBy: { created_at: 'desc' },
-        });
-
-        allPosts.sort((postA: any, postB: any) => {
+        // Your existing sort logic, now applied to the *filtered* list
+        posts.sort((postA: any, postB: any) => {
             const dateA = postA.created_at.toISOString().split('T')[0];
             const dateB = postB.created_at.toISOString().split('T')[0];
-
             if (dateA > dateB) return -1;
             if (dateA < dateB) return 1;
-
             const getPostScore = (post: any) => {
                 if (post.author_id === currentUserId) {
                     return Infinity;
                 }
                 return friendshipScores.get(post.author_id) || 0;
             };
-
             const scoreA = getPostScore(postA);
             const scoreB = getPostScore(postB);
-
             if (scoreA !== scoreB) {
                 return scoreB - scoreA;
             }
-
             const timeA = new Date(postA.created_at).getTime();
             const timeB = new Date(postB.created_at).getTime();
-
             return timeB - timeA;
         });
-
-        res.json(allPosts);
+        res.json(posts);
     } catch (error: any) {
         console.error("Error fetching prioritized feed:", error);
         res.status(500).json({ error: 'Unable to fetch feed.' });

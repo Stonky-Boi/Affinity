@@ -78,8 +78,6 @@ export interface FollowRequest {
   follower: User;
 }
 
-export type ReactionKey = 'like' | 'love' | 'laugh' | 'dislike' | 'angry' | 'party' | 'star' | 'smile' | 'annoyed' | 'strong' | 'frown' | 'fist' | 'help' | 'metal' | 'broken' | 'care' | 'healthy' | 'meh' | 'celebrate' | 'salad';
-
 export interface Reaction {
   id: number | string;
   user_id: number | string;
@@ -93,8 +91,6 @@ export interface UserProfile extends User {
 export interface ApiError {
   error: string;
 }
-
-export type UserProfileResponse = UserProfile | ApiError;
 
 export interface Notification {
   message: string;
@@ -120,8 +116,6 @@ export interface AuthContextType {
   clearNotifications: () => void;
 }
 
-export type Theme = 'light' | 'dark';
-
 export interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
@@ -137,8 +131,6 @@ export interface ClientToServerEvents {
   join_conversation: (conversationId: string) => void;
   send_message: (messageData: NewMessageData) => void;
 }
-
-export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export interface ProviderProps {
   children: ReactNode;
@@ -206,5 +198,10 @@ export interface ReactionSectionProps {
   postId: number | string;
 }
 
+export type FeedType = 'algorithmic' | 'chronological';
 export type ProfilePageView = 'edit' | 'followers' | 'following';
 export type PublicProfilePageView = 'posts' | 'followers' | 'following';
+export type ReactionKey = 'like' | 'love' | 'laugh' | 'dislike' | 'angry' | 'party' | 'star' | 'smile' | 'annoyed' | 'strong' | 'frown' | 'fist' | 'help' | 'metal' | 'broken' | 'care' | 'healthy' | 'meh' | 'celebrate' | 'salad';
+export type UserProfileResponse = UserProfile | ApiError;
+export type Theme = 'light' | 'dark';
+export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
