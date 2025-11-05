@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
 import { Server } from 'socket.io';
-import { RedisClientType } from 'redis';
 
 export const processFollowRequest = async (req: AuthRequest, res: Response) => {
     try {
@@ -22,22 +21,32 @@ export const processFollowRequest = async (req: AuthRequest, res: Response) => {
             });
             res.json({ message: 'Unfollowed user or canceled request.' });
         } else {
+            const userToFollow = await prisma.user.findUnique({
+                where: { id: following_id },
+                select: { privacy_settings: true }
+            });
+            const isPrivate = (userToFollow?.privacy_settings as any)?.is_private === true;
+            const status = isPrivate ? 'pending' : 'accepted';
             await prisma.follows.create({
                 data: { follower_id, following_id, status: 'pending' },
             });
-            try {
-                const followedUserSocketId = await redisClient.get(`userSocket:${following_id}`);
-                if (followedUserSocketId) {
-                    const followerUser = await prisma.user.findUnique({ where: { id: follower_id }, select: { username: true } });
-                    io.to(followedUserSocketId).emit('receive_notification', {
-                        message: `${followerUser?.username || 'Someone'} sent you a follow request.`,
-                        type: 'NEW_FOLLOWER'
-                    });
+            if (isPrivate) {
+                try {
+                    const followedUserSocketId = await redisClient.get(`userSocket:${following_id}`);
+                    if (followedUserSocketId) {
+                        const followerUser = await prisma.user.findUnique({ where: { id: follower_id }, select: { username: true } });
+                        io.to(followedUserSocketId).emit('receive_notification', {
+                            message: `${followerUser?.username || 'Someone'} sent you a follow request.`,
+                            type: 'NEW_FOLLOWER'
+                        });
+                    }
+                } catch (err) {
+                    console.error("Notification emit error (follow req):", err);
                 }
-            } catch (err) {
-                console.error("Notification emit error (follow req):", err);
+                res.json({ message: 'Follow request sent.' });
+            } else {
+                res.json({ message: 'User followed successfully.' });
             }
-            res.json({ message: 'Follow request sent.' });
         }
     } catch (error: any) {
         res.status(500).json({ error: 'Unable to process follow request.' });

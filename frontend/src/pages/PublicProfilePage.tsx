@@ -5,6 +5,7 @@ import PostList from '../components/PostList';
 import UserCard from '../components/UserCard';
 import { SkeletonLoader, PostSkeleton } from '../components/SkeletonLoader';
 import type { FollowData, UserProfile, PublicProfilePageView } from '../types';
+import { Lock } from 'lucide-react';
 
 function PublicProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -14,14 +15,24 @@ function PublicProfilePage() {
   const [followers, setFollowers] = useState<FollowData[]>([]);
   const [following, setFollowing] = useState<FollowData[]>([]);
   const { username } = useParams();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   useEffect(() => {
+    if (!token) { // <-- Wait for token to be available
+      setLoading(false);
+      setError("You must be logged in to view profiles.");
+      return;
+    }
     setLoading(true);
     setError(null);
-    fetch(`/api/users/${username}`)
+    fetch(`/api/users/${username}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
       .then(res => {
         if (!res.ok) {
+          if (res.status === 401) throw new Error("Unauthorized");
           if (res.status === 404) throw new Error(`User not found: @${username}`);
           throw new Error('Failed to fetch user profile.');
         }
@@ -33,12 +44,17 @@ function PublicProfilePage() {
         }
         const profileData = data as UserProfile;
         setProfile(profileData);
+        const authHeader = { 'Authorization': `Bearer ${token}` };
         return Promise.all([
-          fetch(`/api/users/${profileData.id}/followers`).then(res => res.json()),
-          fetch(`/api/users/${profileData.id}/following`).then(res => res.json())
+          fetch(`/api/users/${profileData.id}/followers`, { headers: authHeader }),
+          fetch(`/api/users/${profileData.id}/following`, { headers: authHeader })
         ]);
       })
-      .then(([followersData, followingData]) => {
+      .then(async ([followersRes, followingRes]) => {
+        if (!followersRes.ok) throw new Error('Failed to fetch followers.');
+        if (!followingRes.ok) throw new Error('Failed to fetch following list.');
+        const followersData = await followersRes.json();
+        const followingData = await followingRes.json();
         setFollowers(followersData as FollowData[]);
         setFollowing(followingData as FollowData[]);
       })
@@ -50,7 +66,7 @@ function PublicProfilePage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [username]);
+  }, [username, token]);
 
   if (loading) {
     return (
@@ -82,6 +98,7 @@ function PublicProfilePage() {
   if (!profile) return <div className="p-8"><h2 className="text-primary-text">User not found: {username}</h2></div>;
 
   const isMyProfile = user && user.username === username;
+  const isPrivate = (profile as any).is_private === true;
   const profilePic = profile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`;
 
   const tabButtonClasses = (tabName: PublicProfilePageView) =>
@@ -101,41 +118,57 @@ function PublicProfilePage() {
         <h1 className="text-3xl font-bold text-primary-text">{profile.first_name || profile.username}</h1>
         <p className="text-secondary-text">@{profile.username}</p>
         <p className="mt-4 text-primary-text">{profile.bio || "This user hasn't written a bio yet."}</p>
-        {isMyProfile && (
-          <Link to="/profile">
-            <button className="mt-4 px-4 py-2 bg-primary-border text-primary-text font-semibold rounded-lg hover:brightness-95">
-              Edit Profile
+        <div className="mt-4">
+          {isMyProfile ? (
+            <Link to="/profile">
+              <button className="px-4 py-2 bg-primary-border text-primary-text font-semibold rounded-lg hover:brightness-95">
+                Edit Profile
+              </button>
+            </Link>
+          ) : (
+            <button /* onClick={handleBlock} */ className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700">
+              Block User
             </button>
-          </Link>
-        )}
+          )}
+        </div>
       </div>
-      <div className="border-b border-primary-border flex justify-around bg-surface">
-        <button onClick={() => setView('posts')} className={tabButtonClasses('posts')}>
-          <span className="font-bold text-lg">{postCount}</span>
-          <span className="text-sm">Posts</span>
-        </button>
-        <button onClick={() => setView('followers')} className={tabButtonClasses('followers')}>
-          <span className="font-bold text-lg">{followerCount}</span>
-          <span className="text-sm">Followers</span>
-        </button>
-        <button onClick={() => setView('following')} className={tabButtonClasses('following')}>
-          <span className="font-bold text-lg">{followingCount}</span>
-          <span className="text-sm">Following</span>
-        </button>
-      </div>
-      <div className="p-8">
-        {view === 'posts' && <PostList posts={profile.posts || []} />}
-        {view === 'followers' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {followers.map(f => <UserCard key={f.follower_id} user={f.follower!} />)}
+      {isPrivate && !isMyProfile ? (
+        <div className="p-8 text-center">
+          <Lock size={48} className="mx-auto text-secondary-text" />
+          <h2 className="mt-4 text-xl font-bold">This Account is Private</h2>
+          <p className="text-secondary-text">Follow this account to see their posts.</p>
+        </div>
+      ) : (
+        <>
+          <div className="border-b border-primary-border flex justify-around bg-surface">
+            <button onClick={() => setView('posts')} className={tabButtonClasses('posts')}>
+              <span className="font-bold text-lg">{postCount}</span>
+              <span className="text-sm">Posts</span>
+            </button>
+            <button onClick={() => setView('followers')} className={tabButtonClasses('followers')}>
+              <span className="font-bold text-lg">{followerCount}</span>
+              <span className="text-sm">Followers</span>
+            </button>
+            <button onClick={() => setView('following')} className={tabButtonClasses('following')}>
+              <span className="font-bold text-lg">{followingCount}</span>
+              <span className="text-sm">Following</span>
+            </button>
           </div>
-        )}
-        {view === 'following' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {following.map(f => <UserCard key={f.following_id} user={f.following!} />)}
+          <div className="p-8">
+            {view === 'posts' && <PostList posts={profile.posts || []} />}
+            {view === 'followers' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {followers.map(f => <UserCard key={f.follower_id} user={f.follower!} />)}
+              </div>
+            )}
+            {view === 'following' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {following.map(f => <UserCard key={f.following_id} user={f.following!} />)}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

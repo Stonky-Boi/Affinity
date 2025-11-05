@@ -16,6 +16,7 @@ export interface User {
   phone?: string | null;
   alternate_email?: string | null;
   created_at?: string;
+  privacy_settings?: any;
 }
 
 export interface Post {
@@ -114,7 +115,6 @@ export interface AuthContextType {
   signup: (username: string, email: string, password: string) => Promise<void>;
   logout: (userIdToLogout?: number) => void;
   switchAccount: (userIdToSwitchTo: number) => void;
-  
   socket: AppSocket | null;
   notifications: Notification[];
   clearNotifications: () => void;

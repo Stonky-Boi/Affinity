@@ -17,11 +17,12 @@ const router = Router();
 router.get('/', getAllUsers);
 router.get('/search', authenticateToken, searchUsers);
 router.get('/mutuals', authenticateToken, getMutuals);
-router.get('/:username/mutuals-with-viewer', authenticateToken, getMutualsWithViewer);
-router.get('/:username', getUserProfile);
 router.patch('/profile', authenticateToken, updateUserProfile);
 router.delete('/profile', authenticateToken, deleteUser);
-router.get('/:id/followers', getFollowers);
-router.get('/:id/following', getFollowing);
+
+router.get('/:username', authenticateToken, getUserProfile);
+router.get('/:username/mutuals-with-viewer', authenticateToken, getMutualsWithViewer);
+router.get('/:id/followers', authenticateToken, getFollowers);
+router.get('/:id/following', authenticateToken, getFollowing);
 
 export default router;

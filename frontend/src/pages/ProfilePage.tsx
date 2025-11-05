@@ -14,7 +14,8 @@ function ProfilePage() {
     state: user?.state || '',
     city: user?.city || '',
     phone: user?.phone || '',
-    alternate_email: user?.alternate_email || ''
+    alternate_email: user?.alternate_email || '',
+    privacy_settings: (user?.privacy_settings as any) || {}
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,6 +98,23 @@ function ProfilePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone" className={inputClasses} />
           <input name="alternate_email" type="email" value={formData.alternate_email} onChange={handleChange} placeholder="Alternate Email" className={inputClasses} />
+        </div>
+        <div className="flex items-center justify-between p-4 border border-primary-border rounded-lg">
+          <div>
+            <label className="font-semibold text-primary-text">Private Account</label>
+            <p className="text-sm text-secondary-text">
+              If enabled, people will have to request to follow you.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            className="h-5 w-5 rounded text-accent focus:ring-accent"
+            checked={!!(formData.privacy_settings as any)?.is_private}
+            onChange={(e) => setFormData(prev => ({
+              ...prev,
+              privacy_settings: { ...prev.privacy_settings, is_private: e.target.checked }
+            }))}
+          />
         </div>
         <div>
           <button

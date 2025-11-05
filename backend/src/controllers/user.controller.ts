@@ -106,6 +106,7 @@ export const getMutualsWithViewer = async (req: AuthRequest, res: Response) => {
 
 export const getUserProfile = async (req: Request, res: Response) => {
     const { username } = req.params;
+    const viewerId = (req as AuthRequest).user?.userId;
     try {
         const user = await prisma.user.findUnique({
             where: { username },
@@ -117,6 +118,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
                 picture_url: true,
                 bio: true,
                 created_at: true,
+                privacy_settings: true,
                 posts: {
                     where: { deleted_at: null },
                     orderBy: { created_at: 'desc' },
@@ -125,7 +127,35 @@ export const getUserProfile = async (req: Request, res: Response) => {
             }
         });
         if (!user) return res.status(404).json({ error: 'User not found.' });
-        res.json(user);
+        const isPrivate = (user.privacy_settings as any)?.is_private === true;
+        let isFollowing = false;
+        if (viewerId) {
+            if (viewerId === user.id) {
+                isFollowing = true;
+            } else {
+                const followStatus = await prisma.follows.findUnique({
+                    where: {
+                        follower_id_following_id: { follower_id: viewerId, following_id: user.id }
+                    },
+                    select: { status: true }
+                });
+                isFollowing = followStatus?.status === 'accepted';
+            }
+        }
+        if (isPrivate && !isFollowing) {
+            res.json({
+                id: user.id,
+                username: user.username,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                picture_url: user.picture_url,
+                bio: user.bio,
+                is_private: true,
+                posts: []
+            });
+        } else {
+            res.json(user);
+        }
     } catch (error: any) {
         res.status(500).json({ error: 'Unable to fetch user profile.' });
     }
@@ -135,15 +165,25 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
     const {
         first_name, last_name, bio, picture_url, date_of_birth,
-        country, state, city, phone, alternate_email
+        country, state, city, phone, alternate_email, privacy_settings
     } = req.body;
     try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const newPrivacySettings = { ...user?.privacy_settings as object, ...privacy_settings };
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
-                first_name, last_name, bio, picture_url,
+                first_name: first_name,
+                last_name: last_name || null,
+                bio: bio || null,
+                picture_url: picture_url || null,
                 date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
-                country, state, city, phone, alternate_email
+                country: country || null,
+                state: state || null,
+                city: city || null,
+                phone: phone || null,
+                alternate_email: alternate_email || null,
+                privacy_settings: newPrivacySettings
             },
         });
         const { password, ...safeUser } = updatedUser;
