@@ -117,7 +117,7 @@ function ProfilePage() {
       <div className="mt-12 border-t border-red-500/30 pt-6 max-w-2xl">
         <h2 className="text-xl font-bold text-red-500">Danger Zone</h2>
         <p className="text-secondary-text my-2">
-          Deleting your account is permanent. All of your data will be anonymized.
+          Deleting your account is permanent. All of your data will be anonymized, and you will be logged out.
         </p>
         <button
           onClick={handleDeleteAccount}

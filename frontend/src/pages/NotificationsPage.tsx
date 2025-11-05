@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import UserCard from '../components/UserCard';
 import type { FollowRequest, Notification } from '../types';
-import { Bell, UserPlus, Heart, MessageCircle } from 'lucide-react';
+import { Bell, UserPlus, Heart, MessageCircle, MessageSquare } from 'lucide-react';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 
 const getNotificationIcon = (type: string) => {
@@ -14,6 +14,8 @@ const getNotificationIcon = (type: string) => {
       return <Heart className="w-5 h-5 text-red-500" />;
     case 'NEW_COMMENT':
       return <MessageCircle className="w-5 h-5 text-blue-500" />;
+    case 'NEW_REPLY':
+      return <MessageSquare className="w-5 h-5 text-green-500" />;
     default:
       return <Bell className="w-5 h-5 text-secondary-text" />;
   }

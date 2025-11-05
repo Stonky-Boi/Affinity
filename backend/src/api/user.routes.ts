@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import {
+    deleteUser,
     getAllUsers,
     searchUsers,
     getMutuals,
@@ -19,6 +20,7 @@ router.get('/mutuals', authenticateToken, getMutuals);
 router.get('/:username/mutuals-with-viewer', authenticateToken, getMutualsWithViewer);
 router.get('/:username', getUserProfile);
 router.patch('/profile', authenticateToken, updateUserProfile);
+router.delete('/profile', authenticateToken, deleteUser);
 router.get('/:id/followers', getFollowers);
 router.get('/:id/following', getFollowing);
 

@@ -2,6 +2,25 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
 
+export const deleteUser = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.userId;
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                deleted_at: new Date(),
+                email: null,
+                username: `deleted_user_${userId}`
+            },
+        });
+
+        res.json({ message: 'Account successfully deleted.' });
+    } catch (error: any) {
+        console.error("Error deleting user:", error);
+        res.status(500).json({ error: 'Failed to delete account.' });
+    }
+};
+
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
         const users = await prisma.user.findMany();
