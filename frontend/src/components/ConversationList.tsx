@@ -1,19 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { Conversation, ConversationListProps } from '../types';
+import { SkeletonLoader } from './SkeletonLoader';
 
 function ConversationList({ onSelectConversation }: ConversationListProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user, token } = useAuth();
 
   useEffect(() => {
     if (!token) return;
+    setIsLoading(true);
+    setError(null);
     fetch('/api/conversations', {
       headers: { 'Authorization': `Bearer ${token}` },
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch conversations.');
+        return res.json();
+      })
       .then((data: Conversation[]) => setConversations(data))
-      .catch(error => console.error("Failed to fetch conversations:", error));
+      .catch(error => {
+        console.error("Failed to fetch conversations:", error);
+        setError(error.message);
+      })
+      .finally(() => setIsLoading(false));
   }, [token]);
 
   const getConversationName = (convo: Conversation) => {
@@ -41,15 +53,29 @@ function ConversationList({ onSelectConversation }: ConversationListProps) {
     return `${senderName}${lastMsg.content}`;
   }
 
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-4">
+        <SkeletonLoader className="h-12 w-full" />
+        <SkeletonLoader className="h-12 w-full" />
+        <SkeletonLoader className="h-12 w-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <p className="p-4 text-red-500">{error}</p>;
+  }
+
   return (
     <div className="p-4">
       <div className="space-y-2">
-        {conversations.map(convo => {
+        {conversations.length === 0 ? (
+          <p className="text-secondary-text text-center">No conversations yet.</p>
+        ) : (conversations.map(convo => {
           if (!convo || !convo.participants) return null;
-
           const displayName = getConversationName(convo);
           const lastMessage = getLastMessagePreview(convo);
-
           return (
             <div
               key={convo.id}
@@ -60,7 +86,7 @@ function ConversationList({ onSelectConversation }: ConversationListProps) {
               <p className="text-sm text-secondary-text truncate">{lastMessage}</p>
             </div>
           );
-        })}
+        }))}
       </div>
     </div>
   );

@@ -3,8 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
 
 function ProfilePage() {
-  const { user, token, login } = useAuth();
-
+  const { user, token, login, logout } = useAuth();
   const [formData, setFormData] = useState({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -18,6 +17,10 @@ function ProfilePage() {
     alternate_email: user?.alternate_email || ''
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formState, setFormState] = useState<{ error: string | null, success: boolean }>({ error: null, success: false });
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -25,33 +28,49 @@ function ProfilePage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) {
-      alert('You are not authenticated.');
-      return;
-    }
-
+    if (!token) return;
+    setIsSubmitting(true);
+    setFormState({ error: null, success: false });
     try {
       const response = await fetch('/api/users/profile', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData),
       });
-
       if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error || 'Failed to save profile');
       }
-
       const updatedUser: User = await response.json();
-
-      login(updatedUser, token);
-      alert('Profile saved successfully!');
+      login(updatedUser, token); // Update context
+      setFormState({ error: null, success: true }); // Show success
+      setTimeout(() => setFormState({ error: null, success: false }), 3000); // Clear after 3s
     } catch (error: any) {
       console.error("Error saving profile:", error);
-      alert(`Failed to save profile: ${error.message}`);
+      setFormState({ error: error.message, success: false }); // Show error
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!token || !user) return;
+    setDeleteError(null);
+    if (window.confirm("Are you SURE you want to delete your account? This is permanent and cannot be undone.")) {
+      try {
+        const response = await fetch('/api/users/profile', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Failed to delete account.');
+        }
+        alert('Account deleted successfully.'); // Alert is fine for this destructive action
+        logout(user.id); // Log the user out
+      } catch (error: any) {
+        setDeleteError(error.message); // Show error
+      }
     }
   };
 
@@ -79,10 +98,37 @@ function ProfilePage() {
           <input name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone" className={inputClasses} />
           <input name="alternate_email" type="email" value={formData.alternate_email} onChange={handleChange} placeholder="Alternate Email" className={inputClasses} />
         </div>
-        <button type="submit" className="px-4 py-2 bg-accent text-white font-semibold rounded-lg hover:brightness-90">
-          Save Changes
-        </button>
+        <div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-accent text-white font-semibold rounded-lg hover:brightness-90 disabled:opacity-50"
+          >
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          </button>
+          {formState.error && (
+            <p className="text-red-500 text-sm mt-2">{formState.error}</p>
+          )}
+          {formState.success && (
+            <p className="text-green-500 text-sm mt-2">Profile saved successfully!</p>
+          )}
+        </div>
       </form>
+      <div className="mt-12 border-t border-red-500/30 pt-6 max-w-2xl">
+        <h2 className="text-xl font-bold text-red-500">Danger Zone</h2>
+        <p className="text-secondary-text my-2">
+          Deleting your account is permanent. All of your data will be anonymized.
+        </p>
+        <button
+          onClick={handleDeleteAccount}
+          className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700"
+        >
+          Delete My Account
+        </button>
+        {deleteError && (
+          <p className="text-red-500 text-sm mt-2">{deleteError}</p>
+        )}
+      </div>
     </div>
   );
 }

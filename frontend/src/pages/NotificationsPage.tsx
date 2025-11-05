@@ -3,8 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import UserCard from '../components/UserCard';
 import type { FollowRequest, Notification } from '../types';
 import { Bell, UserPlus, Heart, MessageCircle } from 'lucide-react';
+import { SkeletonLoader } from '../components/SkeletonLoader';
 
-// Helper to get an icon based on notification type
 const getNotificationIcon = (type: string) => {
   switch (type) {
     case 'NEW_FOLLOWER':
@@ -21,16 +21,27 @@ const getNotificationIcon = (type: string) => {
 
 function NotificationsPage() {
   const [requests, setRequests] = useState<FollowRequest[]>([]);
-  // Get the notifications array from our context
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { token, notifications, clearNotifications } = useAuth();
 
   const fetchRequests = () => {
     if (!token) return;
-    fetch('/api/follows/pending', { // <-- Make sure this is a relative path
+    setIsLoading(true);
+    setError(null);
+    fetch('/api/follows/pending', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(res => res.json())
-      .then((data: FollowRequest[]) => setRequests(data));
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch follow requests.');
+        return res.json();
+      })
+      .then((data: FollowRequest[]) => setRequests(data))
+      .catch(error => {
+        console.error("Error fetching requests:", error);
+        setError(error.message);
+      })
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
@@ -38,7 +49,7 @@ function NotificationsPage() {
   }, [token]);
 
   const handleResponse = (followerId: string | number, newStatus: 'accepted' | 'declined') => {
-    fetch('/api/follows/respond', { // <-- Make sure this is a relative path
+    fetch('/api/follows/respond', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -47,7 +58,7 @@ function NotificationsPage() {
       body: JSON.stringify({ follower_id: followerId, newStatus }),
     })
       .then(() => {
-        fetchRequests(); // Refresh the list of requests
+        fetchRequests();
       });
   };
 
@@ -64,7 +75,6 @@ function NotificationsPage() {
           </button>
         )}
       </div>
-      
       <div className="space-y-4 mb-10">
         {notifications.length > 0 ? (
           notifications.map((notif: Notification, index: number) => (
@@ -79,9 +89,14 @@ function NotificationsPage() {
           <p className="text-secondary-text">You have no new notifications.</p>
         )}
       </div>
-
       <h2 className="text-2xl font-bold mb-6 text-primary-text">Pending Follow Requests</h2>
-      {requests.length > 0 ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          <SkeletonLoader className="h-20 w-full" />
+        </div>
+      ) : error ? (
+        <p className="text-red-500">{error}</p>
+      ) : requests.length > 0 ? (
         <div className="space-y-4">
           {requests.map(req => (
             <div key={req.follower_id} className="flex items-center justify-between p-2 bg-surface border border-primary-border rounded-lg">
@@ -95,7 +110,8 @@ function NotificationsPage() {
         </div>
       ) : (
         <p className="text-secondary-text">You have no pending follow requests.</p>
-      )}
+      )
+      }
     </div>
   );
 }

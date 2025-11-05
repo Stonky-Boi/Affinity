@@ -26,7 +26,6 @@ function MainLayout() {
           </div>
         </nav>
       )}
-
       <div className="flex h-[calc(100vh-65px)] bg-background">
         <div className="w-1/5 border-r border-primary-border bg-surface overflow-y-auto scrollbar-hide">
           <Sidebar />

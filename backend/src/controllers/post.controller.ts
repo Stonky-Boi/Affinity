@@ -3,7 +3,6 @@ import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
 import { updateFriendship } from '../services/friendship.service';
 import { Server } from 'socket.io';
-import { RedisClientType } from 'redis';
 
 export const createPost = async (req: AuthRequest, res: Response) => {
     const author_id = req.user!.userId;
@@ -65,7 +64,7 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
 
             const getPostScore = (post: any) => {
                 if (post.author_id === currentUserId) {
-                    return Infinity; // Always show user's own posts first
+                    return Infinity;
                 }
                 return friendshipScores.get(post.author_id) || 0;
             };

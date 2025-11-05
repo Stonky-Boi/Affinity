@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Heart, ThumbsUp, ThumbsDown, Laugh, Angry, PartyPopper, SmilePlus, Star,
+  Heart, ThumbsUp, ThumbsDown, Laugh, Angry, PartyPopper, Star,
   Annoyed, BicepsFlexed, Frown, HandFist, HandHelping, HandMetal, HeartCrack,
   HeartHandshake, LeafyGreen, Meh, Ribbon, Salad, Smile
 } from 'lucide-react';
+import { SmilePlus, AlertCircle } from 'lucide-react';
 import type { Reaction, ReactionKey, ReactionSectionProps } from '../types';
 
 const reactionMap = {
@@ -35,6 +36,7 @@ const availableReactions = Object.keys(reactionMap) as ReactionKey[];
 function ReactionSection({ postId }: ReactionSectionProps) {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [showPicker, setShowPicker] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { user, token } = useAuth();
 
   const fetchReactions = () => {
@@ -51,20 +53,29 @@ function ReactionSection({ postId }: ReactionSectionProps) {
 
   const handleReact = (reactionType: ReactionKey) => {
     if (!user || !token) return;
+    setError(null);
     fetch(`/api/posts/${postId}/reactions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ reaction_type: reactionType }),
     })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to send reaction.');
+        return res.json();
+      })
       .then(() => {
         fetchReactions();
         setShowPicker(false);
       })
-      .catch(error => console.error("Error sending reaction:", error));
+      .catch(error => {
+        console.error("Error sending reaction:", error);
+        setError(error.message);
+        // Clear error after 3 seconds
+        setTimeout(() => setError(null), 3000);
+      });
   };
 
   const userReaction = reactions.find(r => r.user_id === user?.id);
-
   const UserReactionIcon = userReaction ? reactionMap[userReaction.reaction_type]?.Icon : null;
   const userReactionColor = userReaction ? reactionMap[userReaction.reaction_type]?.color : 'text-secondary-text';
   const reactionCount = reactions.length;
@@ -87,12 +98,13 @@ function ReactionSection({ postId }: ReactionSectionProps) {
         {UserReactionIcon ? <UserReactionIcon size={18} /> : <SmilePlus size={18} />}
         <span>{userReaction ? userReaction.reaction_type : 'React'}</span>
       </button>
-
+      {error && (
+        <span title={error}>
+          <AlertCircle size={18} className="text-red-500" />
+        </span>
+      )}
       {showPicker && (
-        <div
-          className="absolute bottom-full mb-2 p-2 bg-surface border border-primary-border rounded-lg shadow-lg z-10 
-                     grid grid-cols-10 gap-1 w-max max-w-sm"
-        >
+        <div className="absolute bottom-full mb-2 p-2 bg-surface border border-primary-border rounded-lg shadow-lg z-10 grid grid-cols-10 gap-1 w-max max-w-sm">
           {availableReactions.map(type => {
             const { Icon, color } = reactionMap[type];
             return (
@@ -108,7 +120,6 @@ function ReactionSection({ postId }: ReactionSectionProps) {
           })}
         </div>
       )}
-
       {reactionCount > 0 && (
         <span className="text-sm text-secondary-text">{reactionCount}</span>
       )}

@@ -7,13 +7,12 @@ import type { User } from '../types';
 function ConversationsPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [mutuals, setMutuals] = useState<User[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
-
   const [selectedParticipants, setSelectedParticipants] = useState<User[]>([]);
   const [groupName, setGroupName] = useState('');
-
+  const [isStarting, setIsStarting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -33,7 +32,8 @@ function ConversationsPage() {
     }
     const isGroupChat = selectedParticipants.length > 1;
     const participantIds = selectedParticipants.map(p => p.id);
-
+    setIsStarting(true);
+    setModalError(null);
     try {
       const response = await fetch('/api/conversations', {
         method: 'POST',
@@ -43,28 +43,21 @@ function ConversationsPage() {
           name: isGroupChat ? groupName : null
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to start conversation');
       }
-
       const conversation = await response.json();
-
       setIsModalOpen(false);
       setSelectedParticipants([]);
       setGroupName('');
-
       setSelectedConversationId(conversation.id);
       setRefreshKey(prev => prev + 1);
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error("Error starting conversation:", error);
-        alert(`Error: ${error.message}`);
-      } else {
-        console.error("Unknown error:", error);
-        alert("An unknown error occurred.");
-      }
+    } catch (error: any) {
+      console.error("Error starting conversation:", error);
+      setModalError(error.message);
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -86,7 +79,6 @@ function ConversationsPage() {
         </div>
         <ConversationList key={refreshKey} onSelectConversation={setSelectedConversationId} />
       </div>
-
       <main className="w-2/3 flex flex-col">
         {selectedConversationId ? (
           <ChatWindow conversationId={String(selectedConversationId)} />
@@ -96,12 +88,10 @@ function ConversationsPage() {
           </div>
         )}
       </main>
-
       {isModalOpen && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
           <div className="bg-surface rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4 text-primary-text">Start a new message</h2>
-
             {selectedParticipants.length > 1 && (
               <input
                 type="text"
@@ -111,7 +101,6 @@ function ConversationsPage() {
                 className="w-full p-2 border border-primary-border rounded-lg mb-4 bg-background text-primary-text placeholder-secondary-text"
               />
             )}
-
             <p className="text-sm text-secondary-text mb-2">Select recipients (mutual followers):</p>
             <div className="space-y-2 max-h-60 overflow-y-auto border border-primary-border rounded-lg p-2 mb-4">
               {mutuals.map(mutualUser => {
@@ -129,17 +118,21 @@ function ConversationsPage() {
                 );
               })}
             </div>
-
+            {modalError && (
+              <p className="text-red-500 text-sm mt-2 text-center">{modalError}</p>
+            )}
             <div className="flex gap-2 mt-4">
               <button
-                onClick={() => { setIsModalOpen(false); setSelectedParticipants([]); setGroupName(''); }}
+                onClick={() => { setIsModalOpen(false); /* ... */ }}
                 className="flex-1 bg-primary-border text-primary-text font-semibold py-2 rounded-lg hover:brightness-95"
               >Cancel</button>
               <button
                 onClick={handleStartConversation}
-                disabled={selectedParticipants.length === 0}
+                disabled={selectedParticipants.length === 0 || isStarting}
                 className="flex-1 bg-accent text-white font-semibold py-2 rounded-lg hover:brightness-90 disabled:opacity-50"
-              >Start Chat</button>
+              >
+                {isStarting ? 'Starting...' : 'Start Chat'}
+              </button>
             </div>
           </div>
         </div>
@@ -147,4 +140,5 @@ function ConversationsPage() {
     </div>
   );
 }
+
 export default ConversationsPage;

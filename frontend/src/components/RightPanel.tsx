@@ -2,24 +2,47 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { User, UserProfile, FollowData, UserProfileResponse } from '../types';
+import { SkeletonLoader } from './SkeletonLoader.tsx';
 
 function RightPanel() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const [outgoingFollows, setOutgoingFollows] = useState(new Map<number, string>());
-  const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
-  const [mutualConnections, setMutualConnections] = useState<User[]>([]);
   const { user, token } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchUserParam = searchParams.get('searchUser');
 
+  const [searchResults, setSearchResults] = useState<{ loading: boolean, error: string | null, data: User[] }>({ loading: false, error: null, data: [] });
+  const [suggestedUsers, setSuggestedUsers] = useState<{ loading: boolean, error: string | null, data: User[] }>({ loading: true, error: null, data: [] });
+  const [selectedProfile, setSelectedProfile] = useState<{ loading: boolean, error: string | null, data: UserProfile | null }>({ loading: false, error: null, data: null });
+  const [mutuals, setMutuals] = useState<{ loading: boolean, error: string | null, data: User[] }>({ loading: false, error: null, data: [] });
+
+  const fetchApi = async (url: string, options: RequestInit = {}) => {
+    const defaultHeaders: HeadersInit = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+    const config: RequestInit = {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      }
+    };
+    const res = await fetch(url, config);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'API request failed');
+    }
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return res.json();
+    }
+    return;
+  };
+
   const fetchOutgoingFollows = () => {
     if (!user || !token) return;
-    fetch(`/api/users/${user.id}/following`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
+    fetchApi(`/api/users/${user.id}/following`)
       .then((data: FollowData[]) => {
         const followsMap = new Map(data.map((f: FollowData) => [f.following_id, f.status]));
         setOutgoingFollows(followsMap);
@@ -27,82 +50,75 @@ function RightPanel() {
       .catch(error => console.error("Error fetching outgoing follows:", error));
   };
 
+  // Fetch suggested users (on mount)
   useEffect(() => {
-    if (!searchUserParam && token) {
-      fetch('/api/users', { headers: { 'Authorization': `Bearer ${token}` } })
-        .then(res => res.json())
-        .then((data: User[]) => setSuggestedUsers(data))
-        .catch(error => console.error("Error fetching suggested users:", error));
-    }
+    if (!token) return;
+    setSuggestedUsers({ loading: true, error: null, data: [] });
+    fetchApi('/api/users') // <-- TODO: This should be a real suggestion endpoint
+      .then((data: User[]) => setSuggestedUsers({ loading: false, error: null, data }))
+      .catch(error => setSuggestedUsers({ loading: false, error: error.message, data: [] }));
     fetchOutgoingFollows();
-  }, [user, searchUserParam, token]);
+  }, [token]);
 
+  // Fetch search results (on query change)
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setSearchResults([]);
+      setSearchResults({ loading: false, error: null, data: [] });
       return;
     }
     if (!token) return;
-    fetch(`/api/users/search?q=${searchQuery}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then((data: User[]) => setSearchResults(data))
-      .catch(error => console.error("Error fetching search results:", error));
+    setSearchResults(prev => ({ ...prev, loading: true }));
+    const handler = setTimeout(() => { // Debounce search
+      fetchApi(`/api/users/search?q=${searchQuery}`)
+        .then((data: User[]) => setSearchResults({ loading: false, error: null, data }))
+        .catch(error => setSearchResults({ loading: false, error: error.message, data: [] }));
+    }, 300);
+    return () => clearTimeout(handler);
   }, [searchQuery, token]);
 
+  // Fetch selected user profile (on param change)
   useEffect(() => {
     if (searchUserParam) {
-      fetch(`/api/users/${searchUserParam}`)
-        .then(res => res.json())
+      setSelectedProfile({ loading: true, error: null, data: null });
+      fetchApi(`/api/users/${searchUserParam}`)
         .then((data: UserProfileResponse) => {
-          if ('error' in data) {
-            setSelectedUserProfile(null);
-          } else {
-            setSelectedUserProfile(data);
-          }
+          if ('error' in data) throw new Error(data.error);
+          setSelectedProfile({ loading: false, error: null, data });
         })
-        .catch(error => { console.error("Error fetching selected user profile:", error); setSelectedUserProfile(null); });
+        .catch(error => setSelectedProfile({ loading: false, error: error.message, data: null }));
     } else {
-      setSelectedUserProfile(null);
+      setSelectedProfile({ loading: false, error: null, data: null });
     }
   }, [searchUserParam]);
 
+  // Fetch mutuals (when selected profile changes)
   useEffect(() => {
-    if (selectedUserProfile && token) {
-      fetch(`/api/users/${selectedUserProfile.username}/mutuals-with-viewer`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then((data: User[]) => setMutualConnections(data))
-        .catch(error => console.error("Error fetching mutual connections:", error));
+    if (selectedProfile.data && token) {
+      setMutuals({ loading: true, error: null, data: [] });
+      fetchApi(`/api/users/${selectedProfile.data.username}/mutuals-with-viewer`)
+        .then((data: User[]) => setMutuals({ loading: false, error: null, data }))
+        .catch(error => setMutuals({ loading: false, error: error.message, data: [] }));
     } else {
-      setMutualConnections([]);
+      setMutuals({ loading: false, error: null, data: [] });
     }
-  }, [selectedUserProfile, token]);
+  }, [selectedProfile.data, token]);
 
-  const handleFollowToggle = (userIdToToggle: number) => {
+  // Follow/Unfollow action
+  const handleFollowToggle = async (userIdToToggle: number) => {
     if (!user || !token) return;
-    fetch(`/api/follows/user/${userIdToToggle}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ follower_id: user.id })
-    })
-      .then(() => {
-        fetchOutgoingFollows();
-        if (searchUserParam) {
-          fetch(`/api/users/${searchUserParam}`)
-            .then(res => res.json())
-            .then((data: UserProfileResponse) => {
-              if ('error' in data) {
-                setSelectedUserProfile(null);
-              } else {
-                setSelectedUserProfile(data);
-              }
-            });
-        }
-      })
-      .catch(error => console.error("Error toggling follow:", error));
+    try {
+      // Optimistic UI: Update status immediately
+      const currentStatus = outgoingFollows.get(userIdToToggle);
+      const newStatus = currentStatus === 'accepted' ? undefined : (currentStatus === 'pending' ? undefined : 'pending');
+      const newMap = new Map(outgoingFollows);
+      if (newStatus) newMap.set(userIdToToggle, newStatus);
+      else newMap.delete(userIdToToggle);
+      setOutgoingFollows(newMap);
+      await fetchApi(`/api/follows/user/${userIdToToggle}`, { method: 'POST' });
+    } catch (error) {
+      console.error("Error toggling follow:", error);
+      fetchOutgoingFollows();
+    }
   };
 
   const renderUserListItem = (userToRender: User) => {
@@ -116,34 +132,24 @@ function RightPanel() {
     );
   };
 
-  const renderMutualConnections = () => {
-    if (!selectedUserProfile || mutualConnections.length === 0) return null;
-    return (
-      <div className="p-4 mt-4 border-t border-primary-border">
-        <h3 className="font-bold text-lg mb-2 text-primary-text">Mutual Connections</h3>
-        <div className="space-y-1">
-          {mutualConnections.map(renderUserListItem)}
-        </div>
-      </div>
-    );
-  };
-
   const renderSelectedUserProfile = () => {
-    if (!selectedUserProfile) return null;
-    const profilePic = selectedUserProfile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${selectedUserProfile.username}`;
-    const followStatus = outgoingFollows.get(selectedUserProfile.id);
+    if (selectedProfile.loading) return <SkeletonLoader className="h-40 w-full" />;
+    if (selectedProfile.error) return <p className="p-4 text-red-500">{selectedProfile.error}</p>;
+    if (!selectedProfile.data) return null;
+    const profile = selectedProfile.data;
+    const profilePic = profile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`;
+    const followStatus = outgoingFollows.get(profile.id);
     let buttonText = 'Follow';
     let buttonClass = 'bg-accent text-white';
     if (followStatus === 'accepted') { buttonText = 'Following'; buttonClass = 'bg-primary-border text-primary-text'; }
     if (followStatus === 'pending') { buttonText = 'Requested'; buttonClass = 'bg-primary-border text-primary-text'; }
-
     return (
       <div className="p-4 border-b border-primary-border">
-        <img src={profilePic} alt={selectedUserProfile.username} className="w-16 h-16 rounded-full mb-2 object-cover mx-auto" />
-        <Link to={`/${selectedUserProfile.username}`}><p className="font-semibold text-center text-primary-text hover:underline">{selectedUserProfile.username}</p></Link>
-        <p className="text-sm text-secondary-text text-center mt-1">{selectedUserProfile.bio || ""}</p>
+        <img src={profilePic} alt={profile.username} className="w-16 h-16 rounded-full mb-2 object-cover mx-auto" />
+        <Link to={`/${profile.username}`}><p className="font-semibold text-center text-primary-text hover:underline">{profile.username}</p></Link>
+        <p className="text-sm text-secondary-text text-center mt-1 truncate">{profile.bio || ""}</p>
         <button
-          onClick={() => handleFollowToggle(selectedUserProfile.id)}
+          onClick={() => handleFollowToggle(profile.id)}
           className={`mt-1 w-full py-1 rounded-lg text-sm font-semibold ${buttonClass} transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-95`}
         >
           {buttonText}
@@ -158,6 +164,37 @@ function RightPanel() {
     );
   };
 
+  const renderMutualConnections = () => {
+    if (mutuals.loading) return <SkeletonLoader className="h-20 w-full" />;
+    if (mutuals.error) return <p className="p-4 text-red-500">{mutuals.error}</p>;
+    if (!selectedProfile.data || mutuals.data.length === 0) return null;
+    return (
+      <div className="p-4 mt-4 border-t border-primary-border">
+        <h3 className="font-bold text-lg mb-2 text-primary-text">Mutual Connections</h3>
+        <div className="space-y-1">
+          {mutuals.data.map(renderUserListItem)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderUserList = (title: string, state: { loading: boolean, error: string | null, data: User[] }) => (
+    <div>
+      <h2 className="font-bold text-lg mb-2 text-primary-text">{title}</h2>
+      {state.loading && <SkeletonLoader className="h-24 w-full" />}
+      {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
+      {!state.loading && !state.error && (
+        <div className="space-y-1">
+          {state.data.length > 0 ? (
+            state.data.filter(u => u.id !== user?.id).map(renderUserListItem)
+          ) : (
+            <p className="text-secondary-text text-sm">{title === 'Search Results' ? 'No users found.' : 'No suggestions found.'}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="p-4 bg-surface h-full overflow-y-auto">
       <input
@@ -167,28 +204,15 @@ function RightPanel() {
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full p-2 border border-primary-border rounded-lg mb-4 bg-background text-primary-text placeholder-secondary-text"
       />
-
-      {selectedUserProfile && renderSelectedUserProfile()}
-      {selectedUserProfile && renderMutualConnections()}
-
-      {!selectedUserProfile && (
-        searchQuery.trim() !== '' ? (
-          <div>
-            <h2 className="font-bold text-lg mb-2 text-primary-text">Search Results</h2>
-            <div className="space-y-1">
-              {searchResults.length > 0 ? searchResults.map(renderUserListItem) : <p className="text-secondary-text text-sm">No users found.</p>}
-            </div>
-          </div>
-        ) : (
-          <div>
-            <h2 className="font-bold text-lg mb-2 text-primary-text">People You May Know</h2>
-            <div className="space-y-1">
-              {suggestedUsers.filter(u => u.id !== user?.id).map(renderUserListItem)}
-            </div>
-          </div>
-        )
+      {selectedProfile.data && renderSelectedUserProfile()}
+      {selectedProfile.data && renderMutualConnections()}
+      {!selectedProfile.data && (
+        searchQuery.trim() !== ''
+          ? renderUserList('Search Results', searchResults)
+          : renderUserList('People You May Know', suggestedUsers)
       )}
     </div>
   );
 }
+
 export default RightPanel;

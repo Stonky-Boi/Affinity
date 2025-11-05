@@ -9,6 +9,7 @@ import type { FollowData, UserProfile, PublicProfilePageView } from '../types';
 function PublicProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<PublicProfilePageView>('posts');
   const [followers, setFollowers] = useState<FollowData[]>([]);
   const [following, setFollowing] = useState<FollowData[]>([]);
@@ -17,17 +18,36 @@ function PublicProfilePage() {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetch(`/api/users/${username}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 404) throw new Error(`User not found: @${username}`);
+          throw new Error('Failed to fetch user profile.');
+        }
+        return res.json();
+      })
       .then(data => {
         if (data.error) {
-          setProfile(null);
-        } else {
-          const profileData = data as UserProfile;
-          setProfile(profileData);
-          fetch(`/api/users/${profileData.id}/followers`).then(res => res.json()).then((d: FollowData[]) => setFollowers(d));
-          fetch(`/api/users/${profileData.id}/following`).then(res => res.json()).then((d: FollowData[]) => setFollowing(d));
+          throw new Error(data.error);
         }
+        const profileData = data as UserProfile;
+        setProfile(profileData);
+        return Promise.all([
+          fetch(`/api/users/${profileData.id}/followers`).then(res => res.json()),
+          fetch(`/api/users/${profileData.id}/following`).then(res => res.json())
+        ]);
+      })
+      .then(([followersData, followingData]) => {
+        setFollowers(followersData as FollowData[]);
+        setFollowing(followingData as FollowData[]);
+      })
+      .catch(err => {
+        console.error("Error loading profile page:", err);
+        setError(err.message);
+        setProfile(null);
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, [username]);
@@ -51,10 +71,17 @@ function PublicProfilePage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <p className="p-4 bg-red-500/10 text-red-500 border border-red-500 rounded-lg">{error}</p>
+      </div>
+    );
+  }
+
   if (!profile) return <div className="p-8"><h2 className="text-primary-text">User not found: {username}</h2></div>;
 
   const isMyProfile = user && user.username === username;
-
   const profilePic = profile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`;
 
   const tabButtonClasses = (tabName: PublicProfilePageView) =>
@@ -82,7 +109,6 @@ function PublicProfilePage() {
           </Link>
         )}
       </div>
-
       <div className="border-b border-primary-border flex justify-around bg-surface">
         <button onClick={() => setView('posts')} className={tabButtonClasses('posts')}>
           <span className="font-bold text-lg">{postCount}</span>
@@ -97,7 +123,6 @@ function PublicProfilePage() {
           <span className="text-sm">Following</span>
         </button>
       </div>
-
       <div className="p-8">
         {view === 'posts' && <PostList posts={profile.posts || []} />}
         {view === 'followers' && (

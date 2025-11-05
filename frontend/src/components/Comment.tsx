@@ -54,13 +54,11 @@ function Comment({
           </div>
         )}
       </div>
-
       {isReplying && (
         <div className="mt-2">
           <CreateCommentForm postId={postId} parentId={comment.id} onCommentCreated={() => { setIsReplying(false); onCommentCreated(); }} />
         </div>
       )}
-
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-2">
           {comment.replies.map(reply => (
@@ -78,4 +76,5 @@ function Comment({
     </div>
   );
 }
+
 export default Comment;

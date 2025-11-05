@@ -23,14 +23,11 @@ export const handleSocketEvents = (io: Server) => {
             try {
                 const payload = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number };
                 const userId = payload.userId;
-
                 // Attach userId to the socket object for easy lookup on disconnect
                 socket.userId = userId;
-
                 // Store in Redis: "userSocket:123" -> "abcSocketIdXYZ"
                 await redisClient.set(`userSocket:${userId}`, socket.id);
                 console.log(`Socket Auth: User ${userId} mapped to socket ${socket.id}`);
-
             } catch (err) {
                 console.error("Socket Auth: Invalid token", err);
             }
@@ -43,26 +40,21 @@ export const handleSocketEvents = (io: Server) => {
                 if (isNaN(convoIdInt)) {
                     throw new Error("Invalid conversation_id format.");
                 }
-
                 const conversation = await prisma.conversation.findUnique({
                     where: { id: convoIdInt },
                     include: { participants: true },
                 });
-
                 if (!conversation) {
                     throw new Error("Conversation not found.");
                 }
-
                 const recipient = conversation.participants.find((p: any) => p.id !== sender_id);
                 if (recipient) {
                     await updateFriendship(sender_id, recipient.id, { num_messages: { increment: 1 } });
                 }
-
                 const newMessage = await prisma.message.create({
                     data: { content, sender_id, conversation_id: convoIdInt },
                     include: { sender: true },
                 });
-
                 io.to(conversation_id).emit('receive_message', newMessage);
             } catch (error: any) {
                 console.error("Error in send_message:", error);

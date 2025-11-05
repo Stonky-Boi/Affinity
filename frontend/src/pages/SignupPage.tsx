@@ -8,12 +8,14 @@ function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
     try {
       await signup(username, email, password);
       navigate('/');
@@ -23,6 +25,8 @@ function SignupPage() {
       } else {
         setError('An unknown error occurred during signup.');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -43,8 +47,12 @@ function SignupPage() {
           <label className="block text-secondary-text mb-2">Password</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 border border-primary-border rounded-lg bg-background text-primary-text" required />
         </div>
-        <button type="submit" className="w-full bg-accent text-white font-semibold p-2 rounded-lg hover:brightness-90">
-          Sign Up
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full bg-accent text-white font-semibold p-2 rounded-lg hover:brightness-90 disabled:opacity-50"
+        >
+          {isSubmitting ? 'Creating account...' : 'Sign Up'}
         </button>
         <p className="mt-4 text-center text-secondary-text">
           Already have an account?{' '}
@@ -56,4 +64,5 @@ function SignupPage() {
     </div>
   );
 }
+
 export default SignupPage;

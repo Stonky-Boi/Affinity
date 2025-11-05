@@ -20,7 +20,6 @@ function Sidebar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
   };
 
   const handleSwitch = (userId: number) => {
@@ -68,7 +67,6 @@ function Sidebar() {
           </ul>
         </nav>
       </div>
-
       <div>
         <button onClick={() => setIsSwitchModalOpen(true)} className="w-full flex items-center text-left p-2 text-md text-secondary-text rounded-lg hover:bg-primary-border transition-colors duration-200">
           <Users size={20} className="mr-3" />
@@ -79,7 +77,6 @@ function Sidebar() {
           Log Out ({user?.username})
         </button>
       </div>
-
       {isSwitchModalOpen && (
         <div className="absolute bottom-16 left-2 right-2 mb-2 p-4 bg-surface border border-primary-border rounded-lg shadow-lg z-20">
           <h3 className="font-semibold mb-2 text-primary-text">Switch Account</h3>
@@ -112,4 +109,5 @@ function Sidebar() {
     </div>
   );
 }
+
 export default Sidebar;

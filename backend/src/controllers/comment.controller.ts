@@ -3,7 +3,6 @@ import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
 import { updateFriendship } from '../services/friendship.service';
 import { Server } from 'socket.io';
-import { RedisClientType } from 'redis';
 
 export const getComments = async (req: Request, res: Response) => {
     try {

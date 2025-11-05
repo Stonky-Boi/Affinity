@@ -39,7 +39,6 @@ export const getMutuals = async (req: AuthRequest, res: Response) => {
             select: { following_id: true }
         });
         const followingIds = followingResult.map((f: any) => f.following_id);
-
         const mutualsResult = await prisma.follows.findMany({
             where: {
                 following_id: currentUserId,
@@ -47,7 +46,6 @@ export const getMutuals = async (req: AuthRequest, res: Response) => {
             },
             include: { follower: true }
         });
-
         const mutualUsers = mutualsResult.map((m: any) => m.follower);
         res.json(mutualUsers);
     } catch (error: any) {
@@ -65,21 +63,17 @@ export const getMutualsWithViewer = async (req: AuthRequest, res: Response) => {
         });
         if (!profileUser) return res.status(404).json({ error: 'Profile user not found.' });
         const profileUserId = profileUser.id;
-
         const viewerFollowingResult = await prisma.follows.findMany({
             where: { follower_id: viewerId, status: 'accepted' },
             select: { following_id: true }
         });
         const viewerFollowingIds = new Set(viewerFollowingResult.map((f: any) => f.following_id));
-
         const profileFollowingResult = await prisma.follows.findMany({
             where: { follower_id: profileUserId, status: 'accepted' },
             select: { following_id: true }
         });
         const profileFollowingIds = new Set(profileFollowingResult.map((f: any) => f.following_id));
-
         const mutualFollowingIds = [...viewerFollowingIds].filter(id => profileFollowingIds.has(id));
-
         const mutualUsers = await prisma.user.findMany({
             where: { id: { in: mutualFollowingIds } },
             select: { id: true, username: true, picture_url: true }

@@ -15,10 +15,8 @@ type FriendshipUpdateData = {
 
 export const updateFriendship = async (userId1: number, userId2: number, data: FriendshipUpdateData) => {
   if (userId1 === userId2) return; // Don't track self-interaction
-
   const user_a_id = Math.min(userId1, userId2);
   const user_b_id = Math.max(userId1, userId2);
-
   try {
     const friendship = await prisma.friendship.upsert({
       where: {
@@ -34,13 +32,11 @@ export const updateFriendship = async (userId1: number, userId2: number, data: F
         friend_score: 0,
       },
     });
-
     // Recalculate the friend_score based on the new totals
     const newScore =
       (friendship.num_messages + (data.num_messages?.increment || 0)) * FRIENDSHIP_WEIGHTS.message +
       (friendship.num_comments + (data.num_comments?.increment || 0)) * FRIENDSHIP_WEIGHTS.comment +
       (friendship.num_reactions + (data.num_reactions?.increment || 0)) * FRIENDSHIP_WEIGHTS.reaction;
-
     // Update the score using the correct composite key
     await prisma.friendship.update({
       where: {
@@ -53,7 +49,6 @@ export const updateFriendship = async (userId1: number, userId2: number, data: F
         friend_score: newScore,
       },
     });
-
   } catch (error) {
     console.error("Failed to update friendship:", error);
   }

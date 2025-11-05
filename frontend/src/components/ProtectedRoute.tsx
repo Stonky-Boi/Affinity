@@ -4,11 +4,9 @@ import type { ProtectedRouteProps } from '../types';
 
 function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user } = useAuth();
-
   if (!user) {
     return <Navigate to="/login" />;
   }
-
   return children;
 }
 

@@ -7,33 +7,34 @@ function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to login');
       }
-
       login(data.user, data.token);
       navigate('/');
-
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('An unknown error occurred.');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -64,9 +65,10 @@ function LoginPage() {
         </div>
         <button
           type="submit"
-          className="w-full bg-accent text-white font-semibold p-2 rounded-lg hover:brightness-90"
+          disabled={isSubmitting}
+          className="w-full bg-accent text-white font-semibold p-2 rounded-lg hover:brightness-90 disabled:opacity-50"
         >
-          Login
+          {isSubmitting ? 'Logging in...' : 'Login'}
         </button>
         <p className="mt-4 text-center text-secondary-text">
           Don't have an account?{' '}
