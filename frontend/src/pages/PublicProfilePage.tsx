@@ -14,11 +14,13 @@ function PublicProfilePage() {
   const [view, setView] = useState<PublicProfilePageView>('posts');
   const [followers, setFollowers] = useState<FollowData[]>([]);
   const [following, setFollowing] = useState<FollowData[]>([]);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
   const { username } = useParams();
   const { user, token } = useAuth();
 
   useEffect(() => {
-    if (!token) { // <-- Wait for token to be available
+    if (!token) {
       setLoading(false);
       setError("You must be logged in to view profiles.");
       return;
@@ -67,6 +69,29 @@ function PublicProfilePage() {
         setLoading(false);
       });
   }, [username, token]);
+
+  const handleBlock = async () => {
+    if (!profile || !token || isBlocking) return;
+    setIsBlocking(true);
+    setBlockError(null);
+    try {
+      const response = await fetch(`/api/block/user/${profile.id}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update block status.');
+      }
+      const data = await response.json();
+      alert(data.message);
+      window.location.reload();
+    } catch (err: any) {
+      setBlockError(err.message);
+    } finally {
+      setIsBlocking(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -118,19 +143,27 @@ function PublicProfilePage() {
         <h1 className="text-3xl font-bold text-primary-text">{profile.first_name || profile.username}</h1>
         <p className="text-secondary-text">@{profile.username}</p>
         <p className="mt-4 text-primary-text">{profile.bio || "This user hasn't written a bio yet."}</p>
-        <div className="mt-4">
-          {isMyProfile ? (
+        <div className="mt-4 flex gap-2">
+          {isMyProfile && (
             <Link to="/profile">
               <button className="px-4 py-2 bg-primary-border text-primary-text font-semibold rounded-lg hover:brightness-95">
                 Edit Profile
               </button>
             </Link>
-          ) : (
-            <button /* onClick={handleBlock} */ className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700">
-              Block User
+          )}
+          {!isMyProfile && (
+            <button
+              onClick={handleBlock}
+              disabled={isBlocking}
+              className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {isBlocking ? '...' : 'Block User'}
             </button>
           )}
         </div>
+        {blockError && (
+          <p className="text-red-500 text-sm mt-2">{blockError}</p>
+        )}
       </div>
       {isPrivate && !isMyProfile ? (
         <div className="p-8 text-center">

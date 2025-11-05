@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
 import { updateFriendship } from '../services/friendship.service';
+import { getBlockedUserIds } from '../services/block.service';
 import { Server } from 'socket.io';
 
 export const createPost = async (req: AuthRequest, res: Response) => {
@@ -18,9 +19,17 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 };
 
 export const getAllPosts = async (req: Request, res: Response) => {
+    const currentUserId = (req as AuthRequest).user?.userId;
+    let blockedUserIds: number[] = [];
+    if (currentUserId) {
+        blockedUserIds = await getBlockedUserIds(currentUserId);
+    }
     try {
         const posts = await prisma.post.findMany({
-            where: { deleted_at: null },
+            where: {
+                deleted_at: null,
+                author_id: { notIn: blockedUserIds }
+            },
             include: { author: true },
             orderBy: { created_at: 'desc' },
         });
@@ -32,6 +41,10 @@ export const getAllPosts = async (req: Request, res: Response) => {
 
 export const getFeed = async (req: AuthRequest, res: Response) => {
     const currentUserId = req.user!.userId;
+    let blockedUserIds: number[] = [];
+    if (currentUserId) {
+        blockedUserIds = await getBlockedUserIds(currentUserId);
+    }
     try {
         const friendships = await prisma.friendship.findMany({
             where: {
@@ -50,6 +63,7 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
         const allPosts = await prisma.post.findMany({
             where: {
                 deleted_at: null,
+                author_id: { notIn: blockedUserIds }
             },
             include: { author: true },
             orderBy: { created_at: 'desc' },
@@ -138,13 +152,26 @@ export const getReactions = async (req: Request, res: Response) => {
 
 export const processReaction = async (req: AuthRequest, res: Response) => {
     try {
+        const postId = parseInt(req.params.postId);
+        const userId = req.user!.userId;
+        const post = await prisma.post.findUnique({ where: { id: postId } });
+        if (!post) return res.status(404).json({ error: "Post not found." });
+        const blocked = await prisma.block.findFirst({
+            where: {
+                OR: [
+                    { blocker_id: userId, blocked_id: post.author_id },
+                    { blocker_id: post.author_id, blocked_id: userId }
+                ]
+            }
+        });
+        if (blocked) {
+            return res.status(403).json({ error: "You cannot interact with this user's content." });
+        }
         const io = req.app.get('socketio') as Server;
         const redisClient = req.app.get('redisClient') as any;
-        const postId = parseInt(req.params.postId);
         if (isNaN(postId)) {
             return res.status(400).json({ error: "Invalid Post ID." });
         }
-        const userId = req.user!.userId;
         const { reaction_type } = req.body;
         if (!reaction_type || typeof reaction_type !== 'string') {
             return res.status(400).json({ error: "Invalid reaction type provided." });

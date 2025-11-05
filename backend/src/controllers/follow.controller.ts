@@ -5,10 +5,21 @@ import { Server } from 'socket.io';
 
 export const processFollowRequest = async (req: AuthRequest, res: Response) => {
     try {
-        const io = req.app.get('socketio') as Server;
-        const redisClient = req.app.get('redisClient') as any;
         const follower_id = req.user!.userId;
         const following_id = parseInt(req.params.id);
+        const blocked = await prisma.block.findFirst({
+            where: {
+                OR: [
+                    { blocker_id: follower_id, blocked_id: following_id },
+                    { blocker_id: following_id, blocked_id: follower_id }
+                ]
+            }
+        });
+        if (blocked) {
+            return res.status(403).json({ error: "You cannot follow someone who blocked you, or whom you blocked." });
+        }
+        const io = req.app.get('socketio') as Server;
+        const redisClient = req.app.get('redisClient') as any;
         if (follower_id === following_id) {
             return res.status(400).json({ error: "You cannot follow yourself." });
         }

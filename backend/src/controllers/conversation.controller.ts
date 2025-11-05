@@ -1,16 +1,17 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import { getBlockedUserIds } from '../services/block.service';
 import prisma from '../db';
 
 export const getConversations = async (req: AuthRequest, res: Response) => {
     try {
         const currentUserId = req.user!.userId;
+        const blockedUserIds = await getBlockedUserIds(currentUserId);
         const followingResult = await prisma.follows.findMany({
             where: { follower_id: currentUserId },
             select: { following_id: true }
         });
         const followingIds = followingResult.map((f: any) => f.following_id);
-
         const mutualsResult = await prisma.follows.findMany({
             where: {
                 following_id: currentUserId,
@@ -19,12 +20,12 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
             select: { follower_id: true }
         });
         const mutualIds = mutualsResult.map((m: any) => m.follower_id);
-
         const conversations = await prisma.conversation.findMany({
             where: {
                 AND: [
                     { participants: { some: { id: currentUserId } } },
-                    { participants: { some: { id: { in: mutualIds } } } }
+                    { participants: { some: { id: { in: mutualIds } } } },
+                    { participants: { none: { id: { in: blockedUserIds } } } }
                 ]
             },
             include: {
@@ -65,7 +66,6 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
         }
         const allParticipantIds = [...new Set([initiator_id, ...participant_ids])];
         allParticipantIds.sort();
-
         let conversationToReturn = null;
         if (allParticipantIds.length === 2) {
             const existingOneOnOne = await prisma.conversation.findFirst({

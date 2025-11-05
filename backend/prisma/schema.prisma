@@ -39,6 +39,9 @@ model User {
 
   friendshipsA Friendship[] @relation("UserA")
   friendshipsB Friendship[] @relation("UserB")
+
+  blocking  Block[] @relation("Blocking")
+  blockedBy Block[] @relation("Blocked")
 }
 
 model Post {
@@ -140,4 +143,16 @@ model Friendship {
   updated_at DateTime @updatedAt
 
   @@id([user_a_id, user_b_id])
+}
+
+model Block {
+  blocker_id Int
+  blocker    User @relation("Blocking", fields: [blocker_id], references: [id], onDelete: Cascade)
+
+  blocked_id Int
+  blocked    User @relation("Blocked", fields: [blocked_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+
+  @@id([blocker_id, blocked_id])
 }

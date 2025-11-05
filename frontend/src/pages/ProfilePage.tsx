@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
+import { SkeletonLoader } from '../components/SkeletonLoader';
 
 function ProfilePage() {
   const { user, token, login, logout } = useAuth();
@@ -21,6 +22,28 @@ function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formState, setFormState] = useState<{ error: string | null, success: boolean }>({ error: null, success: false });
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
+  const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
+  const [blockError, setBlockError] = useState<string | null>(null);
+
+  const fetchBlockedUsers = () => {
+    if (!token) return;
+    setIsLoadingBlocks(true);
+    setBlockError(null);
+    fetch('/api/block/list', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch blocked users.');
+        return res.json();
+      })
+      .then((data: User[]) => setBlockedUsers(data))
+      .catch(err => setBlockError(err.message))
+      .finally(() => setIsLoadingBlocks(false));
+  };
+  useEffect(() => {
+    fetchBlockedUsers();
+  }, [token]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -72,6 +95,20 @@ function ProfilePage() {
       } catch (error: any) {
         setDeleteError(error.message); // Show error
       }
+    }
+  };
+
+  const handleUnblock = async (userId: number) => {
+    if (!token) return;
+    try {
+      const response = await fetch(`/api/block/user/${userId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to unblock user.');
+      fetchBlockedUsers();
+    } catch (err: any) {
+      setBlockError(err.message);
     }
   };
 
@@ -132,6 +169,33 @@ function ProfilePage() {
           )}
         </div>
       </form>
+      <div className="mt-12 border-t border-primary-border/30 pt-6 max-w-2xl">
+        <h2 className="text-xl font-bold text-primary-text">Manage Blocked Users</h2>
+        <p className="text-secondary-text my-2">
+          Users you block cannot see your profile or interact with you.
+        </p>
+        <div className="space-y-2">
+          {isLoadingBlocks ? (
+            <SkeletonLoader className="h-16 w-full" />
+          ) : blockError ? (
+            <p className="text-red-500">{blockError}</p>
+          ) : blockedUsers.length === 0 ? (
+            <p className="text-secondary-text">You haven't blocked anyone.</p>
+          ) : (
+            blockedUsers.map(blockedUser => (
+              <div key={blockedUser.id} className="flex items-center justify-between p-2 bg-surface rounded-lg">
+                <p className="font-semibold">{blockedUser.username}</p>
+                <button
+                  onClick={() => handleUnblock(blockedUser.id)}
+                  className="px-3 py-1 text-sm font-semibold bg-primary-border rounded-lg hover:brightness-90"
+                >
+                  Unblock
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
       <div className="mt-12 border-t border-red-500/30 pt-6 max-w-2xl">
         <h2 className="text-xl font-bold text-red-500">Danger Zone</h2>
         <p className="text-secondary-text my-2">

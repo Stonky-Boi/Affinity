@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import { getBlockedUserIds } from '../services/block.service';
 import prisma from '../db';
 
 export const deleteUser = async (req: AuthRequest, res: Response) => {
@@ -22,8 +23,17 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
 };
 
 export const getAllUsers = async (req: Request, res: Response) => {
+    const currentUserId = (req as AuthRequest).user?.userId;
+    let blockedUserIds: number[] = [];
+    if (currentUserId) {
+        blockedUserIds = await getBlockedUserIds(currentUserId);
+    }
     try {
-        const users = await prisma.user.findMany();
+        const users = await prisma.user.findMany({
+            where: {
+                id: { notIn: blockedUserIds }
+            }
+        });
         res.json(users);
     } catch (error: any) {
         res.status(500).json({ error: 'Unable to fetch users' });
@@ -31,17 +41,20 @@ export const getAllUsers = async (req: Request, res: Response) => {
 };
 
 export const searchUsers = async (req: AuthRequest, res: Response) => {
+    const currentUserId = req.user!.userId;
     const { q } = req.query;
     if (!q) {
         return res.json([]);
     }
     try {
+        const blockedUserIds = await getBlockedUserIds(currentUserId);
         const users = await prisma.user.findMany({
             where: {
                 username: {
                     contains: q as string,
                     mode: 'insensitive',
                 },
+                id: { notIn: blockedUserIds }
             },
         });
         res.json(users);
@@ -53,8 +66,12 @@ export const searchUsers = async (req: AuthRequest, res: Response) => {
 export const getMutuals = async (req: AuthRequest, res: Response) => {
     const currentUserId = req.user!.userId;
     try {
+        const blockedUserIds = await getBlockedUserIds(currentUserId);
         const followingResult = await prisma.follows.findMany({
-            where: { follower_id: currentUserId },
+            where: {
+                follower_id: currentUserId,
+                following_id: { notIn: blockedUserIds }
+            },
             select: { following_id: true }
         });
         const followingIds = followingResult.map((f: any) => f.following_id);
@@ -104,9 +121,9 @@ export const getMutualsWithViewer = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const getUserProfile = async (req: Request, res: Response) => {
+export const getUserProfile = async (req: AuthRequest, res: Response) => {
     const { username } = req.params;
-    const viewerId = (req as AuthRequest).user?.userId;
+    const viewerId = req.user!.userId;
     try {
         const user = await prisma.user.findUnique({
             where: { username },
@@ -127,6 +144,17 @@ export const getUserProfile = async (req: Request, res: Response) => {
             }
         });
         if (!user) return res.status(404).json({ error: 'User not found.' });
+        const block = await prisma.block.findFirst({
+            where: {
+                OR: [
+                    { blocker_id: viewerId, blocked_id: user.id },
+                    { blocker_id: user.id, blocked_id: viewerId },
+                ]
+            }
+        });
+        if (block) {
+            return res.status(403).json({ error: 'You cannot view this profile.' });
+        }
         const isPrivate = (user.privacy_settings as any)?.is_private === true;
         let isFollowing = false;
         if (viewerId) {
@@ -196,11 +224,17 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const getFollowers = async (req: Request, res: Response) => {
+export const getFollowers = async (req: AuthRequest, res: Response) => {
+    const currentUserId = req.user!.userId;
     try {
         const user_id = parseInt(req.params.id);
+        const blockedUserIds = await getBlockedUserIds(currentUserId);
         const followers = await prisma.follows.findMany({
-            where: { following_id: user_id, status: 'accepted' },
+            where: {
+                following_id: user_id,
+                status: 'accepted',
+                follower_id: { notIn: blockedUserIds }
+            },
             include: { follower: true },
         });
         res.json(followers);
@@ -209,11 +243,16 @@ export const getFollowers = async (req: Request, res: Response) => {
     }
 };
 
-export const getFollowing = async (req: Request, res: Response) => {
+export const getFollowing = async (req: AuthRequest, res: Response) => {
+    const currentUserId = req.user!.userId;
     try {
         const user_id = parseInt(req.params.id);
+        const blockedUserIds = await getBlockedUserIds(currentUserId);
         const following = await prisma.follows.findMany({
-            where: { follower_id: user_id },
+            where: {
+                follower_id: user_id,
+                following_id: { notIn: blockedUserIds }
+            },
             include: { following: true },
         });
         res.json(following);
