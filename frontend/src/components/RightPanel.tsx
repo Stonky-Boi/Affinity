@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { User, UserProfile, FollowData, UserProfileResponse } from '../types';
 import { SkeletonLoader } from './SkeletonLoader.tsx';
@@ -8,13 +8,15 @@ function RightPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [outgoingFollows, setOutgoingFollows] = useState(new Map<number, string>());
   const { user, token } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const searchUserParam = searchParams.get('searchUser');
+  const { username: profileUsername } = useParams<{ username: string }>();
+  const navigate = useNavigate();
 
   const [searchResults, setSearchResults] = useState<{ loading: boolean, error: string | null, data: User[] }>({ loading: false, error: null, data: [] });
   const [suggestedUsers, setSuggestedUsers] = useState<{ loading: boolean, error: string | null, data: User[] }>({ loading: true, error: null, data: [] });
   const [selectedProfile, setSelectedProfile] = useState<{ loading: boolean, error: string | null, data: UserProfile | null }>({ loading: false, error: null, data: null });
   const [mutuals, setMutuals] = useState<{ loading: boolean, error: string | null, data: User[] }>({ loading: false, error: null, data: [] });
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
 
   const fetchApi = async (url: string, options: RequestInit = {}) => {
     const defaultHeaders: HeadersInit = {
@@ -23,10 +25,7 @@ function RightPanel() {
     };
     const config: RequestInit = {
       ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      }
+      headers: { ...defaultHeaders, ...options.headers }
     };
     const res = await fetch(url, config);
     if (!res.ok) {
@@ -37,7 +36,6 @@ function RightPanel() {
     if (contentType && contentType.includes('application/json')) {
       return res.json();
     }
-    return;
   };
 
   const fetchOutgoingFollows = () => {
@@ -78,9 +76,9 @@ function RightPanel() {
 
   // Fetch selected user profile (on param change)
   useEffect(() => {
-    if (searchUserParam) {
+    if (profileUsername) {
       setSelectedProfile({ loading: true, error: null, data: null });
-      fetchApi(`/api/users/${searchUserParam}`)
+      fetchApi(`/api/users/${profileUsername}`)
         .then((data: UserProfileResponse) => {
           if ('error' in data) throw new Error(data.error);
           setSelectedProfile({ loading: false, error: null, data });
@@ -89,7 +87,7 @@ function RightPanel() {
     } else {
       setSelectedProfile({ loading: false, error: null, data: null });
     }
-  }, [searchUserParam]);
+  }, [profileUsername]);
 
   // Fetch mutuals (when selected profile changes)
   useEffect(() => {
@@ -121,11 +119,28 @@ function RightPanel() {
     }
   };
 
+  const handleBlock = async () => {
+    if (!selectedProfile.data || !token || isBlocking) return;
+    setIsBlocking(true);
+    setBlockError(null);
+    try {
+      await fetchApi(`/api/block/user/${selectedProfile.data.id}`, {
+        method: 'POST'
+      });
+      alert("Block status updated.");
+      navigate('/');
+    } catch (err: any) {
+      setBlockError(err.message);
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
   const renderUserListItem = (userToRender: User) => {
     if (!userToRender || !user || userToRender.id === user.id) return null;
     const profilePic = userToRender.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${userToRender.username}`;
     return (
-      <Link key={userToRender.id} to={`/?searchUser=${userToRender.username}`} className="flex items-center p-2 rounded-lg hover:bg-primary-border">
+      <Link key={userToRender.id} to={`/${userToRender.username}`} className="flex items-center p-2 rounded-lg hover:bg-primary-border">
         <img src={profilePic} alt={userToRender.username} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
         <p className="font-semibold ml-3 text-primary-text">{userToRender.username}</p>
       </Link>
@@ -137,6 +152,7 @@ function RightPanel() {
     if (selectedProfile.error) return <p className="p-4 text-red-500">{selectedProfile.error}</p>;
     if (!selectedProfile.data) return null;
     const profile = selectedProfile.data;
+    const isMyProfile = user?.id === profile.id;
     const profilePic = profile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`;
     const followStatus = outgoingFollows.get(profile.id);
     let buttonText = 'Follow';
@@ -148,14 +164,28 @@ function RightPanel() {
         <img src={profilePic} alt={profile.username} className="w-16 h-16 rounded-full mb-2 object-cover mx-auto" />
         <Link to={`/${profile.username}`}><p className="font-semibold text-center text-primary-text hover:underline">{profile.username}</p></Link>
         <p className="text-sm text-secondary-text text-center mt-1 truncate">{profile.bio || ""}</p>
+        {!isMyProfile && (
+          <>
+            <button
+              onClick={() => handleFollowToggle(profile.id)}
+              className={`mt-1 w-full py-1 rounded-lg text-sm font-semibold ${buttonClass} ...`}
+            >
+              {buttonText}
+            </button>
+            <button
+              onClick={handleBlock}
+              disabled={isBlocking}
+              className="mt-1 w-full py-1 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {isBlocking ? '...' : 'Block User'}
+            </button>
+            {blockError && (
+              <p className="text-red-500 text-xs mt-1">{blockError}</p>
+            )}
+          </>
+        )}
         <button
-          onClick={() => handleFollowToggle(profile.id)}
-          className={`mt-1 w-full py-1 rounded-lg text-sm font-semibold ${buttonClass} transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-95`}
-        >
-          {buttonText}
-        </button>
-        <button
-          onClick={() => setSearchParams({})}
+          onClick={() => navigate('/')}
           className="mt-2 w-full text-center text-xs text-secondary-text hover:underline"
         >
           Clear Selection
@@ -204,9 +234,12 @@ function RightPanel() {
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full p-2 border border-primary-border rounded-lg mb-4 bg-background text-primary-text placeholder-secondary-text"
       />
-      {selectedProfile.data && renderSelectedUserProfile()}
-      {selectedProfile.data && renderMutualConnections()}
-      {!selectedProfile.data && (
+      {profileUsername ? (
+        <>
+          {renderSelectedUserProfile()}
+          {renderMutualConnections()}
+        </>
+      ) : (
         searchQuery.trim() !== ''
           ? renderUserList('Search Results', searchResults)
           : renderUserList('People You May Know', suggestedUsers)

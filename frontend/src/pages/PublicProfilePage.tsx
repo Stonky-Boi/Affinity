@@ -14,8 +14,6 @@ function PublicProfilePage() {
   const [view, setView] = useState<PublicProfilePageView>('posts');
   const [followers, setFollowers] = useState<FollowData[]>([]);
   const [following, setFollowing] = useState<FollowData[]>([]);
-  const [isBlocking, setIsBlocking] = useState(false);
-  const [blockError, setBlockError] = useState<string | null>(null);
   const { username } = useParams();
   const { user, token } = useAuth();
 
@@ -28,22 +26,18 @@ function PublicProfilePage() {
     setLoading(true);
     setError(null);
     fetch(`/api/users/${username}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => {
         if (!res.ok) {
-          if (res.status === 401) throw new Error("Unauthorized");
+          if (res.status === 403) throw new Error("This profile is not available.");
           if (res.status === 404) throw new Error(`User not found: @${username}`);
           throw new Error('Failed to fetch user profile.');
         }
         return res.json();
       })
       .then(data => {
-        if (data.error) {
-          throw new Error(data.error);
-        }
+        if (data.error) { throw new Error(data.error); }
         const profileData = data as UserProfile;
         setProfile(profileData);
         const authHeader = { 'Authorization': `Bearer ${token}` };
@@ -68,30 +62,8 @@ function PublicProfilePage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [username, token]);
 
-  const handleBlock = async () => {
-    if (!profile || !token || isBlocking) return;
-    setIsBlocking(true);
-    setBlockError(null);
-    try {
-      const response = await fetch(`/api/block/user/${profile.id}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to update block status.');
-      }
-      const data = await response.json();
-      alert(data.message);
-      window.location.reload();
-    } catch (err: any) {
-      setBlockError(err.message);
-    } finally {
-      setIsBlocking(false);
-    }
-  };
+  }, [username, token]);
 
   if (loading) {
     return (
@@ -151,19 +123,7 @@ function PublicProfilePage() {
               </button>
             </Link>
           )}
-          {!isMyProfile && (
-            <button
-              onClick={handleBlock}
-              disabled={isBlocking}
-              className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50"
-            >
-              {isBlocking ? '...' : 'Block User'}
-            </button>
-          )}
         </div>
-        {blockError && (
-          <p className="text-red-500 text-sm mt-2">{blockError}</p>
-        )}
       </div>
       {isPrivate && !isMyProfile ? (
         <div className="p-8 text-center">
