@@ -1,0 +1,31 @@
+
+services:
+  # This is the custom name of our service
+  redis:
+    # Use the official Redis image
+    image: redis:latest
+    
+    # Give the container a friendly, predictable name
+    container_name: my-compose-redis
+    
+    # Ensures the container restarts if it crashes or the system reboots
+    restart: unless-stopped
+    
+    # Map port 6379 on your host machine to port 6379 in the container
+    ports:
+      - "6379:6379"
+      
+    # Mount the named volume for data persistence
+    volumes:
+      - redis-data:/data
+      
+    # The command to run inside the container
+    # We add --requirepass to set a password
+    command: redis-server --requirepass "SQLBois"
+
+# This top-level block defines the volumes used by your services
+volumes:
+  redis-data:
+    # 'local' is the default driver, but it's good to be explicit.
+    # This tells Docker to manage the volume on the host machine.
+    driver: local
