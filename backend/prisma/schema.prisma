@@ -8,24 +8,22 @@ datasource db {
 }
 
 model User {
-  id               Int       @id @default(autoincrement())
-  username         String    @unique
-  email            String?   @unique
-  password         String
-  first_name       String?
-  last_name        String?
-  picture_url      String?
-  bio              String?
-  date_of_birth    DateTime?
-  country          String?
-  state            String?
-  city             String?
-  phone            String?
-  alternate_email  String?   @unique
-  privacy_settings Json?
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
-  deleted_at       DateTime?
+  id              Int       @id @default(autoincrement())
+  username        String    @unique
+  email           String?   @unique
+  password        String
+  first_name      String?
+  last_name       String?
+  picture_url     String?
+  bio             String?
+  date_of_birth   DateTime?
+  phone           String?
+  alternate_email String?   @unique
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
+
+  settings UserSettings?
 
   posts     Post[]
   comments  Comment[]
@@ -42,6 +40,13 @@ model User {
 
   blocking  Block[] @relation("Blocking")
   blockedBy Block[] @relation("Blocked")
+}
+
+model UserSettings {
+  user_id Int  @id
+  user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  is_private Boolean @default(false)
 }
 
 model Post {
@@ -133,11 +138,6 @@ model Friendship {
 
   user_b_id Int
   user_b    User @relation("UserB", fields: [user_b_id], references: [id])
-
-  num_messages  Int @default(0)
-  num_reactions Int @default(0)
-  num_comments  Int @default(0)
-  friend_score  Int @default(0)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

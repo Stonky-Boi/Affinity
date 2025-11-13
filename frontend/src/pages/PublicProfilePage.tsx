@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import PostList from '../components/PostList';
 import UserCard from '../components/UserCard';
 import { SkeletonLoader, PostSkeleton } from '../components/SkeletonLoader';
-import type { FollowData, UserProfile, PublicProfilePageView } from '../types';
+import type { FollowData, UserProfile, PublicProfilePageView, MutualUser } from '../types';
 import { Lock } from 'lucide-react';
 
 function PublicProfilePage() {
@@ -14,6 +14,7 @@ function PublicProfilePage() {
   const [view, setView] = useState<PublicProfilePageView>('posts');
   const [followers, setFollowers] = useState<FollowData[]>([]);
   const [following, setFollowing] = useState<FollowData[]>([]);
+  const [mutuals, setMutuals] = useState<MutualUser[]>([]);
   const { username } = useParams();
   const { user, token } = useAuth();
 
@@ -43,16 +44,20 @@ function PublicProfilePage() {
         const authHeader = { 'Authorization': `Bearer ${token}` };
         return Promise.all([
           fetch(`/api/users/${profileData.id}/followers`, { headers: authHeader }),
-          fetch(`/api/users/${profileData.id}/following`, { headers: authHeader })
+          fetch(`/api/users/${profileData.id}/following`, { headers: authHeader }),
+          fetch(`/api/users/${profileData.username}/mutuals-with-viewer`, { headers: authHeader })
         ]);
       })
-      .then(async ([followersRes, followingRes]) => {
+      .then(async ([followersRes, followingRes, mutualsRes]) => {
         if (!followersRes.ok) throw new Error('Failed to fetch followers.');
         if (!followingRes.ok) throw new Error('Failed to fetch following list.');
+        if (!mutualsRes.ok) throw new Error('Failed to fetch mutuals.');
         const followersData = await followersRes.json();
         const followingData = await followingRes.json();
+        const mutualsData = await mutualsRes.json();
         setFollowers(followersData as FollowData[]);
         setFollowing(followingData as FollowData[]);
+        setMutuals(mutualsData as MutualUser[]);
       })
       .catch(err => {
         console.error("Error loading profile page:", err);
@@ -95,7 +100,7 @@ function PublicProfilePage() {
   if (!profile) return <div className="p-8"><h2 className="text-primary-text">User not found: {username}</h2></div>;
 
   const isMyProfile = user && user.username === username;
-  const isPrivate = (profile as any).is_private === true;
+  const isPrivate = (profile as any).is_private === true || profile.settings?.is_private === true;
   const profilePic = profile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`;
 
   const tabButtonClasses = (tabName: PublicProfilePageView) =>
@@ -138,6 +143,10 @@ function PublicProfilePage() {
               <span className="font-bold text-lg">{postCount}</span>
               <span className="text-sm">Posts</span>
             </button>
+            <button onClick={() => setView('mutuals')} className={tabButtonClasses('mutuals')}>
+              <span className="font-bold text-lg">{mutuals.length}</span>
+              <span className="text-sm">Friends</span>
+            </button>
             <button onClick={() => setView('followers')} className={tabButtonClasses('followers')}>
               <span className="font-bold text-lg">{followerCount}</span>
               <span className="text-sm">Followers</span>
@@ -149,6 +158,20 @@ function PublicProfilePage() {
           </div>
           <div className="p-8">
             {view === 'posts' && <PostList posts={profile.posts || []} />}
+            {view === 'mutuals' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {mutuals.length > 0 ? mutuals.map(mUser => (
+                  <div key={mUser.id} className="flex items-center justify-between p-2 rounded-lg bg-surface border border-primary-border">
+                    <UserCard user={mUser} />
+                    <span className="font-bold text-lg text-accent pr-4">
+                      {mUser.score}
+                    </span>
+                  </div>
+                )) : (
+                  <p className="text-secondary-text">No friends found.</p>
+                )}
+              </div>
+            )}
             {view === 'followers' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {followers.map(f => <UserCard key={f.follower_id} user={f.follower!} />)}

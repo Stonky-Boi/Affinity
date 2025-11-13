@@ -7,29 +7,18 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
     try {
         const currentUserId = req.user!.userId;
         const blockedUserIds = await getBlockedUserIds(currentUserId);
-        const followingResult = await prisma.follows.findMany({
-            where: { follower_id: currentUserId },
-            select: { following_id: true }
-        });
-        const followingIds = followingResult.map((f: any) => f.following_id);
-        const mutualsResult = await prisma.follows.findMany({
-            where: {
-                following_id: currentUserId,
-                follower_id: { in: followingIds }
-            },
-            select: { follower_id: true }
-        });
-        const mutualIds = mutualsResult.map((m: any) => m.follower_id);
+        const otherBlockedIds = blockedUserIds.filter(id => id !== currentUserId);
         const conversations = await prisma.conversation.findMany({
             where: {
                 AND: [
                     { participants: { some: { id: currentUserId } } },
-                    { participants: { some: { id: { in: mutualIds } } } },
-                    { participants: { none: { id: { in: blockedUserIds } } } }
+                    { participants: { none: { id: { in: otherBlockedIds } } } }
                 ]
             },
             include: {
-                participants: true,
+                participants: {
+                    where: { id: { notIn: otherBlockedIds } }
+                },
                 messages: {
                     orderBy: { created_at: 'desc' },
                     take: 1,
@@ -70,7 +59,10 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
         if (allParticipantIds.length === 2) {
             const existingOneOnOne = await prisma.conversation.findFirst({
                 where: {
-                    participants: { every: { id: { in: allParticipantIds } } },
+                    AND: [
+                        { participants: { every: { id: { in: allParticipantIds } } } },
+                        { participants: { none: { id: { notIn: allParticipantIds } } } }
+                    ]
                 },
                 include: { participants: true }
             });

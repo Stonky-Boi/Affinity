@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
-import { updateFriendship } from '../services/friendship.service';
+import { getFriendshipScore } from '../services/friendship.service';
 import { getBlockedUserIds } from '../services/block.service';
 import { Server } from 'socket.io';
 
@@ -41,58 +41,42 @@ export const getAllPosts = async (req: Request, res: Response) => {
 
 export const getFeed = async (req: AuthRequest, res: Response) => {
     const currentUserId = req.user!.userId;
-    const { sort } = req.query; // Get the sort preference
+    const { sort } = req.query;
     try {
-        // Get Blocked IDs (we already did this)
         const blockedUserIds = await getBlockedUserIds(currentUserId);
-        // Get IDs of users the current user follows ---
         const following = await prisma.follows.findMany({
-            where: {
-                follower_id: currentUserId,
-                status: 'accepted'
-            },
+            where: { follower_id: currentUserId, status: 'accepted' },
             select: { following_id: true }
         });
-        // Create a list of all IDs to show: people I follow, plus myself
         const followingIds = following.map(f => f.following_id);
         const feedUserIds = [...followingIds, currentUserId];
-        // Fetch ONLY posts from the allowed user list
+
         const posts = await prisma.post.findMany({
             where: {
                 deleted_at: null,
-                author_id: {
-                    in: feedUserIds, // <-- Filter for followed users
-                    notIn: blockedUserIds // <-- Filter for blocked users
-                }
+                author_id: { in: feedUserIds, notIn: blockedUserIds }
             },
             include: { author: true },
-            orderBy: { created_at: 'desc' }, // <-- Always get newest first
+            orderBy: { created_at: 'desc' },
         });
-        // If user wants a simple chronological feed, return now.
+
         if (sort === 'chronological') {
             return res.json(posts);
         }
-        // Run your existing Algorithmic Sort ---
-        const friendships = await prisma.friendship.findMany({
-            where: {
-                OR: [{ user_a_id: currentUserId }, { user_b_id: currentUserId }],
-            },
-        });
+        const authors = [...new Set(posts.map(p => p.author_id))];
         const friendshipScores = new Map<number, number>();
-        friendships.forEach((f: any) => {
-            const otherUserId = f.user_a_id === currentUserId ? f.user_b_id : f.user_a_id;
-            friendshipScores.set(otherUserId, f.friend_score || 0);
-        });
-        // Your existing sort logic, now applied to the *filtered* list
+        await Promise.all(authors.map(async (authorId) => {
+            if (authorId === currentUserId) return;
+            const score = await getFriendshipScore(currentUserId, authorId);
+            friendshipScores.set(authorId, score);
+        }));
         posts.sort((postA: any, postB: any) => {
             const dateA = postA.created_at.toISOString().split('T')[0];
             const dateB = postB.created_at.toISOString().split('T')[0];
             if (dateA > dateB) return -1;
             if (dateA < dateB) return 1;
             const getPostScore = (post: any) => {
-                if (post.author_id === currentUserId) {
-                    return Infinity;
-                }
+                if (post.author_id === currentUserId) return Infinity;
                 return friendshipScores.get(post.author_id) || 0;
             };
             const scoreA = getPostScore(postA);
@@ -100,9 +84,7 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
             if (scoreA !== scoreB) {
                 return scoreB - scoreA;
             }
-            const timeA = new Date(postA.created_at).getTime();
-            const timeB = new Date(postB.created_at).getTime();
-            return timeB - timeA;
+            return new Date(postB.created_at).getTime() - new Date(postA.created_at).getTime();
         });
         res.json(posts);
     } catch (error: any) {
@@ -204,7 +186,6 @@ export const processReaction = async (req: AuthRequest, res: Response) => {
             });
             const post = await prisma.post.findUnique({ where: { id: postId } });
             if (post && post.author_id !== userId) {
-                await updateFriendship(userId, post.author_id, { num_reactions: { increment: 1 } });
                 try {
                     const authorSocketId = await redisClient.get(`userSocket:${post.author_id}`);
                     if (authorSocketId) {

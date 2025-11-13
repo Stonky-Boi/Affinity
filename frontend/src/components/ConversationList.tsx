@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import type { Conversation, ConversationListProps } from '../types';
 import { SkeletonLoader } from './SkeletonLoader';
 
-function ConversationList({ onSelectConversation }: ConversationListProps) {
+function ConversationList({ onSelectConversation, refreshKey }: ConversationListProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,6 +15,7 @@ function ConversationList({ onSelectConversation }: ConversationListProps) {
     setError(null);
     fetch('/api/conversations', {
       headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store'
     })
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch conversations.');
@@ -26,7 +27,7 @@ function ConversationList({ onSelectConversation }: ConversationListProps) {
         setError(error.message);
       })
       .finally(() => setIsLoading(false));
-  }, [token]);
+  }, [token, refreshKey]);
 
   const getConversationName = (convo: Conversation) => {
     if (convo.name) {
@@ -56,7 +57,6 @@ function ConversationList({ onSelectConversation }: ConversationListProps) {
   if (isLoading) {
     return (
       <div className="p-4 space-y-4">
-        <SkeletonLoader className="h-12 w-full" />
         <SkeletonLoader className="h-12 w-full" />
         <SkeletonLoader className="h-12 w-full" />
       </div>

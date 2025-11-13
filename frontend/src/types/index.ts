@@ -10,13 +10,47 @@ export interface User {
   last_name?: string | null;
   bio?: string | null;
   date_of_birth?: string | null;
-  country?: string | null;
-  state?: string | null;
-  city?: string | null;
   phone?: string | null;
   alternate_email?: string | null;
   created_at?: string;
+  settings?: { is_private?: boolean };
   privacy_settings?: any;
+}
+
+export interface UserProfile extends User {
+  posts: Post[];
+  is_private?: boolean;
+}
+
+export interface MutualUser extends User {
+  score: number;
+}
+
+export interface UserCardProps {
+  user: User;
+}
+
+export interface Account {
+  user: User;
+  token: string;
+}
+
+export interface AuthContextType {
+  token: string | null;
+  user: User | null;
+  accounts: Account[];
+  login: (userData: User, userToken: string) => void;
+  signup: (username: string, email: string, password: string) => Promise<void>;
+  logout: (userIdToLogout?: number) => void;
+  switchAccount: (userIdToSwitchTo: number) => void;
+  socket: AppSocket | null;
+  notifications: Notification[];
+  clearNotifications: () => void;
+}
+
+export interface ThemeContextType {
+  theme: Theme;
+  toggleTheme: () => void;
 }
 
 export interface Post {
@@ -28,11 +62,47 @@ export interface Post {
   created_at?: string;
 }
 
+export interface CreatePostFormProps {
+  onPostCreated: () => void;
+}
+
+export interface PostListProps {
+  posts: Post[];
+  onSavePost?: (postId: number | string, newContent: string) => Promise<void>;
+  onDeletePost?: (postId: number | string) => Promise<void>;
+}
+
 export interface Comment {
   id: number | string;
   content: string;
   author: User;
   replies?: Comment[];
+}
+
+export interface CreateCommentFormProps {
+  postId: number | string;
+  parentId?: number | string | null;
+  onCommentCreated: () => void;
+}
+
+export interface CommentProps {
+  comment: Comment;
+  postId: number | string;
+  onSaveComment: (commentId: number | string, content: string) => void;
+  onDeleteComment: (commentId: number | string) => void;
+  onCommentCreated: () => void;
+}
+
+export interface CommentSectionProps {
+  postId: number | string;
+}
+
+export interface CommentListProps {
+  comments: Comment[];
+  postId: number | string;
+  onSaveComment: (commentId: number | string, content: string) => void;
+  onDeleteComment: (commentId: number | string) => void;
+  onCommentCreated: () => void;
 }
 
 export interface MessageSender {
@@ -65,6 +135,21 @@ export interface Conversation {
   messages: MessagePreview[];
 }
 
+export interface ConversationListProps {
+  onSelectConversation: (conversationId: number | string) => void;
+  refreshKey?: number;
+}
+
+export interface ChatWindowProps {
+  conversationId: string;
+}
+
+export interface NewMessageData {
+  content: string;
+  sender_id: number | string;
+  conversation_id: string;
+}
+
 export interface FollowData {
   follower_id?: number;
   following_id: number;
@@ -84,8 +169,8 @@ export interface Reaction {
   reaction_type: ReactionKey;
 }
 
-export interface UserProfile extends User {
-  posts: Post[];
+export interface ReactionSectionProps {
+  postId: number | string;
 }
 
 export interface ApiError {
@@ -96,29 +181,6 @@ export interface Notification {
   message: string;
   type: string;
   timestamp: Date;
-}
-
-export interface Account {
-  user: User;
-  token: string;
-}
-
-export interface AuthContextType {
-  token: string | null;
-  user: User | null;
-  accounts: Account[];
-  login: (userData: User, userToken: string) => void;
-  signup: (username: string, email: string, password: string) => Promise<void>;
-  logout: (userIdToLogout?: number) => void;
-  switchAccount: (userIdToSwitchTo: number) => void;
-  socket: AppSocket | null;
-  notifications: Notification[];
-  clearNotifications: () => void;
-}
-
-export interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
 }
 
 export interface ServerToClientEvents {
@@ -136,71 +198,13 @@ export interface ProviderProps {
   children: ReactNode;
 }
 
-export interface PostListProps {
-  posts: Post[];
-  onSavePost?: (postId: number | string, newContent: string) => Promise<void>;
-  onDeletePost?: (postId: number | string) => Promise<void>;
-}
-
-export interface UserCardProps {
-  user: User;
-}
-
-export interface CommentProps {
-  comment: Comment;
-  postId: number | string;
-  onSaveComment: (commentId: number | string, content: string) => void;
-  onDeleteComment: (commentId: number | string) => void;
-  onCommentCreated: () => void;
-}
-
-export interface CommentSectionProps {
-  postId: number | string;
-}
-
-export interface CommentListProps {
-  comments: Comment[];
-  postId: number | string;
-  onSaveComment: (commentId: number | string, content: string) => void;
-  onDeleteComment: (commentId: number | string) => void;
-  onCommentCreated: () => void;
-}
-
-export interface ChatWindowProps {
-  conversationId: string;
-}
-
-export interface NewMessageData {
-  content: string;
-  sender_id: number | string;
-  conversation_id: string;
-}
-
-export interface ConversationListProps {
-  onSelectConversation: (conversationId: number | string) => void;
-}
-
-export interface CreateCommentFormProps {
-  postId: number | string;
-  parentId?: number | string | null;
-  onCommentCreated: () => void;
-}
-
-export interface CreatePostFormProps {
-  onPostCreated: () => void;
-}
-
 export interface ProtectedRouteProps {
   children: ReactNode;
 }
 
-export interface ReactionSectionProps {
-  postId: number | string;
-}
-
 export type FeedType = 'algorithmic' | 'chronological';
 export type ProfilePageView = 'edit' | 'followers' | 'following';
-export type PublicProfilePageView = 'posts' | 'followers' | 'following';
+export type PublicProfilePageView = 'posts' | 'mutuals' | 'followers' | 'following';
 export type ReactionKey = 'like' | 'love' | 'laugh' | 'dislike' | 'angry' | 'party' | 'star' | 'smile' | 'annoyed' | 'strong' | 'frown' | 'fist' | 'help' | 'metal' | 'broken' | 'care' | 'healthy' | 'meh' | 'celebrate' | 'salad';
 export type UserProfileResponse = UserProfile | ApiError;
 export type Theme = 'light' | 'dark';

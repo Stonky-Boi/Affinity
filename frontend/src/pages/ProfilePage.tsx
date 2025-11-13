@@ -11,12 +11,9 @@ function ProfilePage() {
     bio: user?.bio || '',
     picture_url: user?.picture_url || '',
     date_of_birth: user?.date_of_birth ? user.date_of_birth.split('T')[0] : '',
-    country: user?.country || '',
-    state: user?.state || '',
-    city: user?.city || '',
     phone: user?.phone || '',
     alternate_email: user?.alternate_email || '',
-    privacy_settings: (user?.privacy_settings as any) || {}
+    privacy_settings: user?.settings || { is_private: false }
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,11 +123,6 @@ function ProfilePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input name="picture_url" value={formData.picture_url} onChange={handleChange} placeholder="Profile Picture URL" className={inputClasses} />
           <input name="date_of_birth" type="date" value={formData.date_of_birth} onChange={handleChange} className={inputClasses} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input name="country" value={formData.country} onChange={handleChange} placeholder="Country" className={inputClasses} />
-          <input name="state" value={formData.state} onChange={handleChange} placeholder="State" className={inputClasses} />
-          <input name="city" value={formData.city} onChange={handleChange} placeholder="City" className={inputClasses} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone" className={inputClasses} />

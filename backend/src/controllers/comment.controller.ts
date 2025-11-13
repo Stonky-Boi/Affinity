@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
-import { updateFriendship } from '../services/friendship.service';
 import { getBlockedUserIds } from '../services/block.service';
 import { Server } from 'socket.io';
 
@@ -73,8 +72,6 @@ export const createComment = async (req: AuthRequest, res: Response) => {
       include: { author: true },
     });
     if (post && post.author_id !== author_id) {
-      await updateFriendship(author_id, post.author_id, { num_comments: { increment: 1 } });
-
       try {
         const authorSocketId = await redisClient.get(`userSocket:${post.author_id}`);
         if (authorSocketId) {

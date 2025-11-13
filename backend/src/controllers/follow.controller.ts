@@ -34,12 +34,12 @@ export const processFollowRequest = async (req: AuthRequest, res: Response) => {
         } else {
             const userToFollow = await prisma.user.findUnique({
                 where: { id: following_id },
-                select: { privacy_settings: true }
+                select: { settings: true }
             });
-            const isPrivate = (userToFollow?.privacy_settings as any)?.is_private === true;
+            const isPrivate = userToFollow?.settings?.is_private === true;
             const status = isPrivate ? 'pending' : 'accepted';
             await prisma.follows.create({
-                data: { follower_id, following_id, status: 'pending' },
+                data: { follower_id, following_id, status: status },
             });
             if (isPrivate) {
                 try {

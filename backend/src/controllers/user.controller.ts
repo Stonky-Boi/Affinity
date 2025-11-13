@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import { getFriendshipScore } from '../services/friendship.service';
 import { getBlockedUserIds } from '../services/block.service';
 import prisma from '../db';
 
@@ -89,35 +90,41 @@ export const getMutuals = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const getMutualsWithViewer = async (req: AuthRequest, res: Response) => {
-    const viewerId = req.user!.userId;
-    const profileUsername = req.params.username;
+export const getMutualsWithScore = async (req: AuthRequest, res: Response) => {
     try {
+        const currentUserId = req.user!.userId;
+        const { username } = req.params;
         const profileUser = await prisma.user.findUnique({
-            where: { username: profileUsername },
+            where: { username },
             select: { id: true }
         });
-        if (!profileUser) return res.status(404).json({ error: 'Profile user not found.' });
-        const profileUserId = profileUser.id;
-        const viewerFollowingResult = await prisma.follows.findMany({
-            where: { follower_id: viewerId, status: 'accepted' },
+        if (!profileUser) return res.status(404).json({ error: "User not found" });
+        const viewerFollowing = await prisma.follows.findMany({
+            where: { follower_id: currentUserId, status: 'accepted' },
             select: { following_id: true }
         });
-        const viewerFollowingIds = new Set(viewerFollowingResult.map((f: any) => f.following_id));
-        const profileFollowingResult = await prisma.follows.findMany({
-            where: { follower_id: profileUserId, status: 'accepted' },
+        const viewerFollowingIds = new Set(viewerFollowing.map(f => f.following_id));
+        const profileFollowing = await prisma.follows.findMany({
+            where: { follower_id: profileUser.id, status: 'accepted' },
             select: { following_id: true }
         });
-        const profileFollowingIds = new Set(profileFollowingResult.map((f: any) => f.following_id));
-        const mutualFollowingIds = [...viewerFollowingIds].filter(id => profileFollowingIds.has(id));
-        const mutualUsers = await prisma.user.findMany({
-            where: { id: { in: mutualFollowingIds } },
+        const mutuals = await prisma.user.findMany({
+            where: {
+                id: {
+                    in: profileFollowing.map(f => f.following_id)
+                        .filter(id => viewerFollowingIds.has(id))
+                }
+            },
             select: { id: true, username: true, picture_url: true }
         });
-        res.json(mutualUsers);
+        const mutualsWithScore = await Promise.all(mutuals.map(async (mutual) => {
+            const score = await getFriendshipScore(currentUserId, mutual.id);
+            return { ...mutual, score };
+        }));
+        mutualsWithScore.sort((a, b) => b.score - a.score);
+        res.json(mutualsWithScore);
     } catch (error: any) {
-        console.error("Error fetching mutuals with viewer:", error);
-        res.status(500).json({ error: "Unable to fetch mutual connections." });
+        res.status(500).json({ error: "Could not fetch mutuals." });
     }
 };
 
@@ -135,7 +142,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
                 picture_url: true,
                 bio: true,
                 created_at: true,
-                privacy_settings: true,
+                settings: true,
                 posts: {
                     where: { deleted_at: null },
                     orderBy: { created_at: 'desc' },
@@ -155,7 +162,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
         if (block) {
             return res.status(403).json({ error: 'You cannot view this profile.' });
         }
-        const isPrivate = (user.privacy_settings as any)?.is_private === true;
+        const isPrivate = user.settings?.is_private === true;
         let isFollowing = false;
         if (viewerId) {
             if (viewerId === user.id) {
@@ -179,6 +186,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
                 picture_url: user.picture_url,
                 bio: user.bio,
                 is_private: true,
+                settings: { is_private: true },
                 posts: []
             });
         } else {
@@ -192,12 +200,9 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
 export const updateUserProfile = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
     const {
-        first_name, last_name, bio, picture_url, date_of_birth,
-        country, state, city, phone, alternate_email, privacy_settings
+        first_name, last_name, bio, picture_url, date_of_birth, phone, alternate_email, privacy_settings
     } = req.body;
     try {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        const newPrivacySettings = { ...user?.privacy_settings as object, ...privacy_settings };
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
@@ -206,13 +211,16 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
                 bio: bio || null,
                 picture_url: picture_url || null,
                 date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
-                country: country || null,
-                state: state || null,
-                city: city || null,
                 phone: phone || null,
                 alternate_email: alternate_email || null,
-                privacy_settings: newPrivacySettings
+                settings: {
+                    upsert: {
+                        create: { is_private: (privacy_settings as any)?.is_private || false },
+                        update: { is_private: (privacy_settings as any)?.is_private }
+                    }
+                }
             },
+            include: { settings: true }
         });
         const { password, ...safeUser } = updatedUser;
         res.json(safeUser);

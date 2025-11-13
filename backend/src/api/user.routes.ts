@@ -5,7 +5,7 @@ import {
     getAllUsers,
     searchUsers,
     getMutuals,
-    getMutualsWithViewer,
+    getMutualsWithScore,
     getUserProfile,
     updateUserProfile,
     getFollowers,
@@ -21,7 +21,7 @@ router.patch('/profile', authenticateToken, updateUserProfile);
 router.delete('/profile', authenticateToken, deleteUser);
 
 router.get('/:username', authenticateToken, getUserProfile);
-router.get('/:username/mutuals-with-viewer', authenticateToken, getMutualsWithViewer);
+router.get('/:username/mutuals-with-viewer', authenticateToken, getMutualsWithScore);
 router.get('/:id/followers', authenticateToken, getFollowers);
 router.get('/:id/following', authenticateToken, getFollowing);
 

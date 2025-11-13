@@ -1,55 +1,64 @@
 import prisma from '../db';
+import redisClient from '../redis';
 
-// Define the weights for your algorithm
-const FRIENDSHIP_WEIGHTS = {
+const WEIGHTS = {
   message: 2,
   comment: 3,
   reaction: 1,
 };
 
-type FriendshipUpdateData = {
-  num_messages?: { increment: number };
-  num_reactions?: { increment: number };
-  num_comments?: { increment: number };
+const MAX_SCORE = (50 * WEIGHTS.message) + (20 * WEIGHTS.comment) + (50 * WEIGHTS.reaction);
+const CACHE_EXPIRATION_SECONDS = 3600;
+
+const calculateScore = (counts: { messages: number, comments: number, reactions: number }): number => {
+  const rawScore =
+    (counts.messages * WEIGHTS.message) +
+    (counts.comments * WEIGHTS.comment) +
+    (counts.reactions * WEIGHTS.reaction);
+  const normalizedScore = Math.min((rawScore / MAX_SCORE) * 100, 100);
+  return Math.round(normalizedScore);
 };
 
-export const updateFriendship = async (userId1: number, userId2: number, data: FriendshipUpdateData) => {
-  if (userId1 === userId2) return; // Don't track self-interaction
-  const user_a_id = Math.min(userId1, userId2);
-  const user_b_id = Math.max(userId1, userId2);
+export const getFriendshipScore = async (userId1: number, userId2: number): Promise<number> => {
+  if (userId1 === userId2) return 0;
+  const userA = Math.min(userId1, userId2);
+  const userB = Math.max(userId1, userId2);
+  const cacheKey = `friendScore:${userA}:${userB}`;
   try {
-    const friendship = await prisma.friendship.upsert({
-      where: {
-        user_a_id_user_b_id: { user_a_id, user_b_id },
-      },
-      update: data, // Apply the increment (e.g., num_messages: { increment: 1 })
-      create: {
-        user_a_id,
-        user_b_id,
-        num_messages: data.num_messages?.increment || 0,
-        num_reactions: data.num_reactions?.increment || 0,
-        num_comments: data.num_comments?.increment || 0,
-        friend_score: 0,
-      },
-    });
-    // Recalculate the friend_score based on the new totals
-    const newScore =
-      (friendship.num_messages + (data.num_messages?.increment || 0)) * FRIENDSHIP_WEIGHTS.message +
-      (friendship.num_comments + (data.num_comments?.increment || 0)) * FRIENDSHIP_WEIGHTS.comment +
-      (friendship.num_reactions + (data.num_reactions?.increment || 0)) * FRIENDSHIP_WEIGHTS.reaction;
-    // Update the score using the correct composite key
-    await prisma.friendship.update({
-      where: {
-        user_a_id_user_b_id: {
-          user_a_id: user_a_id,
-          user_b_id: user_b_id,
-        },
-      },
-      data: {
-        friend_score: newScore,
-      },
-    });
-  } catch (error) {
-    console.error("Failed to update friendship:", error);
+    const cachedScore = await redisClient.get(cacheKey);
+    if (cachedScore) {
+      return parseInt(cachedScore, 10);
+    }
+  } catch (e) {
+    console.error("Redis GET error in friendship.service:", e);
+  }
+  try {
+    const [
+      messagesAB, messagesBA,
+      commentsAB, commentsBA,
+      reactionsAB, reactionsBA
+    ] = await Promise.all([
+      prisma.message.count({ where: { sender_id: userA, conversation: { participants: { some: { id: userB } } } } }),
+      prisma.message.count({ where: { sender_id: userB, conversation: { participants: { some: { id: userA } } } } }),
+      prisma.comment.count({ where: { author_id: userA, post: { author_id: userB }, deleted_at: null } }),
+      prisma.comment.count({ where: { author_id: userB, post: { author_id: userA }, deleted_at: null } }),
+      prisma.reaction.count({ where: { user_id: userA, post: { author_id: userB } } }),
+      prisma.reaction.count({ where: { user_id: userB, post: { author_id: userA } } })
+    ]);
+    const totalCounts = {
+      messages: messagesAB + messagesBA,
+      comments: commentsAB + commentsBA,
+      reactions: reactionsAB + reactionsBA
+    };
+    const newScore = calculateScore(totalCounts);
+    try {
+      await redisClient.set(cacheKey, newScore, { EX: CACHE_EXPIRATION_SECONDS });
+    } catch (e) {
+      console.error("Redis SET error in friendship.service:", e);
+    }
+    return newScore;
+  } catch (e) {
+    console.error("Failed to calculate friendship score:", e);
+    return 0;
   }
 };

@@ -77,7 +77,11 @@ function ConversationsPage() {
             New Message
           </button>
         </div>
-        <ConversationList key={refreshKey} onSelectConversation={setSelectedConversationId} />
+        <ConversationList
+          key={refreshKey}
+          refreshKey={refreshKey}
+          onSelectConversation={setSelectedConversationId}
+        />
       </div>
       <main className="w-2/3 flex flex-col">
         {selectedConversationId ? (
