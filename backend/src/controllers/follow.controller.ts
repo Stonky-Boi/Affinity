@@ -56,6 +56,18 @@ export const processFollowRequest = async (req: AuthRequest, res: Response) => {
                 }
                 res.json({ message: 'Follow request sent.' });
             } else {
+                try {
+                    const followedUserSocketId = await redisClient.get(`userSocket:${following_id}`);
+                    if (followedUserSocketId) {
+                        const followerUser = await prisma.user.findUnique({ where: { id: follower_id }, select: { username: true } });
+                        io.to(followedUserSocketId).emit('receive_notification', {
+                            message: `${followerUser?.username || 'Someone'} started following you.`,
+                            type: 'NEW_FOLLOWER'
+                        });
+                    }
+                } catch (err) {
+                    console.error("Notification emit error (public follow):", err);
+                }
                 res.json({ message: 'User followed successfully.' });
             }
         }

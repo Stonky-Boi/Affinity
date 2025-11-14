@@ -130,7 +130,7 @@ function PublicProfilePage() {
           )}
         </div>
       </div>
-      {isPrivate && !isMyProfile ? (
+      {isPrivate && !isMyProfile && profile.posts.length === 0 ? (
         <div className="p-8 text-center">
           <Lock size={48} className="mx-auto text-secondary-text" />
           <h2 className="mt-4 text-xl font-bold">This Account is Private</h2>

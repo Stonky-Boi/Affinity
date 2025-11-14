@@ -15,6 +15,11 @@ export const handleSocketEvents = (io: Server) => {
     io.on('connection', (socket: AuthenticatedSocket) => {
         console.log(`Socket connected: ${socket.id}`);
 
+        socket.on('join_conversation', (conversationId: string) => {
+            socket.join(conversationId);
+            console.log(`Socket ${socket.id} joined room ${conversationId}`);
+        });
+
         socket.on('authenticate', async (token: string) => {
             if (!token) {
                 return console.error("Socket Auth: No token provided");

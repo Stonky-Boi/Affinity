@@ -25,6 +25,7 @@ function Sidebar() {
   const handleSwitch = (userId: number) => {
     switchAccount(userId);
     setIsSwitchModalOpen(false);
+    navigate('/');
   };
 
   const navItems = [

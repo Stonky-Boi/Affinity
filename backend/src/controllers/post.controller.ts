@@ -14,7 +14,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         });
         res.json(newPost);
     } catch (error: any) {
-        res.json({ error: `Unable to create post` });
+        res.status(500).json({ error: `Unable to create post` });
     }
 };
 
@@ -50,43 +50,58 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
         });
         const followingIds = following.map(f => f.following_id);
         const feedUserIds = [...followingIds, currentUserId];
-
-        const posts = await prisma.post.findMany({
-            where: {
+        let whereClause: any;
+        let orderBy: any = { created_at: 'desc' };
+        if (sort === 'chronological') {
+            whereClause = {
                 deleted_at: null,
                 author_id: { in: feedUserIds, notIn: blockedUserIds }
-            },
-            include: { author: true },
-            orderBy: { created_at: 'desc' },
-        });
-
-        if (sort === 'chronological') {
-            return res.json(posts);
-        }
-        const authors = [...new Set(posts.map(p => p.author_id))];
-        const friendshipScores = new Map<number, number>();
-        await Promise.all(authors.map(async (authorId) => {
-            if (authorId === currentUserId) return;
-            const score = await getFriendshipScore(currentUserId, authorId);
-            friendshipScores.set(authorId, score);
-        }));
-        posts.sort((postA: any, postB: any) => {
-            const dateA = postA.created_at.toISOString().split('T')[0];
-            const dateB = postB.created_at.toISOString().split('T')[0];
-            if (dateA > dateB) return -1;
-            if (dateA < dateB) return 1;
-            const getPostScore = (post: any) => {
-                if (post.author_id === currentUserId) return Infinity;
-                return friendshipScores.get(post.author_id) || 0;
             };
-            const scoreA = getPostScore(postA);
-            const scoreB = getPostScore(postB);
-            if (scoreA !== scoreB) {
-                return scoreB - scoreA;
-            }
-            return new Date(postB.created_at).getTime() - new Date(postA.created_at).getTime();
-        });
-        res.json(posts);
+            const posts = await prisma.post.findMany({
+                where: whereClause,
+                include: { author: true },
+                orderBy: orderBy,
+            });
+            return res.json(posts);
+        } else {
+            whereClause = {
+                deleted_at: null,
+                author_id: { notIn: blockedUserIds },
+                OR: [
+                    { author: { settings: { is_private: false } } },
+                    { author_id: { in: feedUserIds } }
+                ]
+            };
+            const posts = await prisma.post.findMany({
+                where: whereClause,
+                include: { author: true },
+                orderBy: orderBy,
+            });
+            const authors = [...new Set(posts.map(p => p.author_id))];
+            const friendshipScores = new Map<number, number>();
+            await Promise.all(authors.map(async (authorId) => {
+                if (authorId === currentUserId) return;
+                const score = await getFriendshipScore(currentUserId, authorId);
+                friendshipScores.set(authorId, score);
+            }));
+            posts.sort((postA: any, postB: any) => {
+                const dateA = postA.created_at.toISOString().split('T')[0];
+                const dateB = postB.created_at.toISOString().split('T')[0];
+                if (dateA > dateB) return -1;
+                if (dateA < dateB) return 1;
+                const getPostScore = (post: any) => {
+                    if (post.author_id === currentUserId) return Infinity;
+                    return friendshipScores.get(post.author_id) || 0;
+                };
+                const scoreA = getPostScore(postA);
+                const scoreB = getPostScore(postB);
+                if (scoreA !== scoreB) {
+                    return scoreB - scoreA;
+                }
+                return new Date(postB.created_at).getTime() - new Date(postA.created_at).getTime();
+            });
+            res.json(posts);
+        }
     } catch (error: any) {
         console.error("Error fetching prioritized feed:", error);
         res.status(500).json({ error: 'Unable to fetch feed.' });
@@ -136,7 +151,7 @@ export const getReactions = async (req: Request, res: Response) => {
         });
         res.json(reactions);
     } catch (error: any) {
-        res.json({ error: 'Unable to fetch reactions' });
+        res.status(500).json({ error: 'Unable to fetch reactions' });
     }
 };
 

@@ -102,17 +102,22 @@ function RightPanel() {
   }, [selectedProfile.data, token]);
 
   // Follow/Unfollow action
-  const handleFollowToggle = async (userIdToToggle: number) => {
+  const handleFollowToggle = async (userIdToToggle: number, isPrivate?: boolean) => {
     if (!user || !token) return;
     try {
-      // Optimistic UI: Update status immediately
       const currentStatus = outgoingFollows.get(userIdToToggle);
-      const newStatus = currentStatus === 'accepted' ? undefined : (currentStatus === 'pending' ? undefined : 'pending');
+      let newStatus: string | undefined;
+      if (currentStatus === 'accepted' || currentStatus === 'pending') {
+        newStatus = undefined;
+      } else {
+        newStatus = isPrivate === false ? 'accepted' : 'pending';
+      }
       const newMap = new Map(outgoingFollows);
       if (newStatus) newMap.set(userIdToToggle, newStatus);
       else newMap.delete(userIdToToggle);
       setOutgoingFollows(newMap);
       await fetchApi(`/api/follows/user/${userIdToToggle}`, { method: 'POST' });
+      fetchOutgoingFollows();
     } catch (error) {
       console.error("Error toggling follow:", error);
       fetchOutgoingFollows();
@@ -155,6 +160,7 @@ function RightPanel() {
     const isMyProfile = user?.id === profile.id;
     const profilePic = profile.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`;
     const followStatus = outgoingFollows.get(profile.id);
+    const isPrivate = (profile as any).is_private === true || profile.settings?.is_private === true;
     let buttonText = 'Follow';
     let buttonClass = 'bg-accent text-white';
     if (followStatus === 'accepted') { buttonText = 'Following'; buttonClass = 'bg-primary-border text-primary-text'; }
@@ -167,7 +173,7 @@ function RightPanel() {
         {!isMyProfile && (
           <>
             <button
-              onClick={() => handleFollowToggle(profile.id)}
+              onClick={() => handleFollowToggle(profile.id, isPrivate)}
               className={`mt-1 w-full py-1 rounded-lg text-sm font-semibold ${buttonClass} ...`}
             >
               {buttonText}

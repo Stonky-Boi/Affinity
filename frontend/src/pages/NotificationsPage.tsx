@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import UserCard from '../components/UserCard';
-import type { FollowRequest, Notification } from '../types';
+import type { FollowRequest, Notification, User } from '../types';
 import { Bell, UserPlus, Heart, MessageCircle, MessageSquare } from 'lucide-react';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 
@@ -23,6 +23,7 @@ const getNotificationIcon = (type: string) => {
 
 function NotificationsPage() {
   const [requests, setRequests] = useState<FollowRequest[]>([]);
+  const [acceptedRequests, setAcceptedRequests] = useState<FollowRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { token, notifications, clearNotifications } = useAuth();
@@ -59,9 +60,37 @@ function NotificationsPage() {
       },
       body: JSON.stringify({ follower_id: followerId, newStatus }),
     })
-      .then(() => {
-        fetchRequests();
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to respond to request.');
+        const processedRequest = requests.find(r => r.follower_id === followerId);
+        if (processedRequest) {
+          if (newStatus === 'accepted') {
+            setAcceptedRequests(prev => [...prev, processedRequest]);
+          }
+          setRequests(prev => prev.filter(r => r.follower_id !== followerId));
+        }
+      })
+      .catch(err => {
+        console.error("Error in handleResponse:", err);
+        alert(err.message);
       });
+  };
+
+  const handleFollowBack = (userToFollow: User) => {
+    if (!token) return;
+    fetch(`/api/follows/user/${userToFollow.id}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to follow back.');
+        handleDismissFollowBack(userToFollow.id);
+      })
+      .catch(err => alert(`Could not follow back: ${err.message}`));
+  };
+
+  const handleDismissFollowBack = (followerId: string | number) => {
+    setAcceptedRequests(prev => prev.filter(r => r.follower_id !== followerId));
   };
 
   return (
@@ -112,8 +141,23 @@ function NotificationsPage() {
         </div>
       ) : (
         <p className="text-secondary-text">You have no pending follow requests.</p>
-      )
-      }
+      )}
+      {acceptedRequests.length > 0 && (
+        <div className="space-y-4 mt-4">
+          {acceptedRequests.map(req => (
+            <div key={req.follower_id} className="flex items-center justify-between p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <div className="flex-grow">
+                <UserCard user={req.follower} />
+                <p className="text-sm text-green-700 dark:text-green-300 ml-2">You accepted {req.follower.username}'s request.</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleFollowBack(req.follower)} className="bg-accent text-white font-semibold px-4 py-1 rounded-lg hover:brightness-90">Follow Back</button>
+                <button onClick={() => handleDismissFollowBack(req.follower_id)} className="bg-primary-border text-primary-text font-semibold px-4 py-1 rounded-lg hover:brightness-95">Dismiss</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

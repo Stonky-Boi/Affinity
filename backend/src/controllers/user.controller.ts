@@ -247,7 +247,7 @@ export const getFollowers = async (req: AuthRequest, res: Response) => {
         });
         res.json(followers);
     } catch (error: any) {
-        res.json({ error: 'Unable to fetch followers' });
+        res.status(500).json({ error: 'Unable to fetch followers' });
     }
 };
 

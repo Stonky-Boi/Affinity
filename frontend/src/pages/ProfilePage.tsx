@@ -15,10 +15,11 @@ function ProfilePage() {
     alternate_email: user?.alternate_email || '',
     privacy_settings: user?.settings || { is_private: false }
   });
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formState, setFormState] = useState<{ error: string | null, success: boolean }>({ error: null, success: false });
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
   const [blockError, setBlockError] = useState<string | null>(null);
@@ -77,21 +78,23 @@ function ProfilePage() {
   const handleDeleteAccount = async () => {
     if (!token || !user) return;
     setDeleteError(null);
-    if (window.confirm("Are you SURE you want to delete your account? This is permanent and cannot be undone.")) {
-      try {
-        const response = await fetch('/api/users/profile', {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error || 'Failed to delete account.');
-        }
-        alert('Account deleted successfully.'); // Alert is fine for this destructive action
-        logout(user.id); // Log the user out
-      } catch (error: any) {
-        setDeleteError(error.message); // Show error
+    setIsDeleting(true);
+    try {
+      const response = await fetch('/api/users/profile', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete account.');
       }
+      alert('Account deleted successfully.');
+      setIsDeleteModalOpen(false);
+      logout(user.id);
+    } catch (error: any) {
+      setDeleteError(error.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -194,15 +197,46 @@ function ProfilePage() {
           Deleting your account is permanent. All of your data will be anonymized, and you will be logged out.
         </p>
         <button
-          onClick={handleDeleteAccount}
+          onClick={() => {
+            setDeleteError(null);
+            setIsDeleteModalOpen(true);
+          }}
           className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700"
         >
           Delete My Account
         </button>
-        {deleteError && (
+        {deleteError && !isDeleteModalOpen && (
           <p className="text-red-500 text-sm mt-2">{deleteError}</p>
         )}
       </div>
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 p-4">
+          <div className="bg-surface rounded-lg p-6 w-full max-w-md shadow-lg">
+            <h2 className="text-xl font-bold mb-4 text-red-500">Are you absolutely sure?</h2>
+            <p className="text-primary-text mb-2">This action is permanent and cannot be undone.</p>
+            <p className="text-secondary-text mb-4">All your data will be anonymized, and you will be logged out immediately.</p>
+            {deleteError && (
+              <p className="text-red-500 text-sm mt-2 text-center mb-2">{deleteError}</p>
+            )}
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="flex-1 bg-primary-border text-primary-text font-semibold py-2 rounded-lg hover:brightness-95 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+                className="flex-1 bg-red-600 text-white font-semibold py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

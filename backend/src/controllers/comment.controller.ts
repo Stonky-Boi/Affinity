@@ -4,6 +4,19 @@ import prisma from '../db';
 import { getBlockedUserIds } from '../services/block.service';
 import { Server } from 'socket.io';
 
+const buildCommentTree = (comments: any[], parentId: number | null = null): any[] => {
+  const tree: any[] = [];
+  const children = comments.filter(comment => comment.parent_id === parentId);
+  for (const child of children) {
+    const replies = buildCommentTree(comments, child.id);
+    if (replies.length > 0) {
+      child.replies = replies;
+    }
+    tree.push(child);
+  }
+  return tree;
+};
+
 export const getComments = async (req: Request, res: Response) => {
   const currentUserId = (req as AuthRequest).user?.userId;
   let blockedUserIds: number[] = [];
@@ -12,35 +25,19 @@ export const getComments = async (req: Request, res: Response) => {
   }
   try {
     const { postId } = req.params;
-    const comments = await prisma.comment.findMany({
+    const allComments = await prisma.comment.findMany({
       where: {
         post_id: parseInt(postId),
-        parent_id: null,
         deleted_at: null,
         author_id: { notIn: blockedUserIds }
       },
       include: {
         author: true,
-        replies: {
-          where: {
-            deleted_at: null,
-            author_id: { notIn: blockedUserIds }
-          },
-          include: {
-            author: true,
-            replies: {
-              where: {
-                deleted_at: null,
-                author_id: { notIn: blockedUserIds }
-              },
-              include: { author: true }
-            }
-          }
-        }
       },
       orderBy: { created_at: 'asc' },
     });
-    res.json(comments);
+    const commentTree = buildCommentTree(allComments, null);
+    res.json(commentTree);
   } catch (error: any) {
     res.status(500).json({ error: 'Unable to fetch comments' });
   }
