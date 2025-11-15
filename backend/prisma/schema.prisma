@@ -1,158 +1,163 @@
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
 model User {
-  id              Int       @id @default(autoincrement())
-  username        String    @unique
-  email           String?   @unique
-  password        String
-  first_name      String?
-  last_name       String?
-  picture_url     String?
-  bio             String?
-  date_of_birth   DateTime?
-  phone           String?
-  alternate_email String?   @unique
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
-  deleted_at      DateTime?
+    id              Int       @id @default(autoincrement())
+    username        String    @unique
+    email           String?   @unique
+    password        String
+    first_name      String?
+    last_name       String?
+    picture_url     String?
+    bio             String?
+    date_of_birth   DateTime?
+    phone           String?
+    alternate_email String?   @unique
+    created_at      DateTime  @default(now())
+    updated_at      DateTime  @updatedAt
+    deleted_at      DateTime?
 
-  settings UserSettings?
+    settings UserSettings?
 
-  posts     Post[]
-  comments  Comment[]
-  reactions Reaction[]
+    posts     Post[]
+    comments  Comment[]
+    reactions Reaction[]
 
-  followers Follows[] @relation("Following")
-  following Follows[] @relation("Follower")
+    followers Follows[] @relation("Following")
+    following Follows[] @relation("Follower")
 
-  conversations Conversation[] @relation("Participants")
-  messages      Message[]
+    conversations Conversation[] @relation("Participants")
+    messages      Message[]
 
-  friendshipsA Friendship[] @relation("UserA")
-  friendshipsB Friendship[] @relation("UserB")
+    friendshipsA Friendship[] @relation("UserA")
+    friendshipsB Friendship[] @relation("UserB")
 
-  blocking  Block[] @relation("Blocking")
-  blockedBy Block[] @relation("Blocked")
+    blocking  Block[] @relation("Blocking")
+    blockedBy Block[] @relation("Blocked")
 }
 
 model UserSettings {
-  user_id Int  @id
-  user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    user_id Int  @id
+    user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  is_private Boolean @default(false)
+    is_private Boolean @default(false)
 }
 
 model Post {
-  id         Int       @id @default(autoincrement())
-  content    String
-  media_url  String?
-  visibility String    @default("public")
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
+    id         Int       @id @default(autoincrement())
+    content    String
+    media_url  String?
+    visibility String    @default("public")
+    created_at DateTime  @default(now())
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime?
 
-  author    User @relation(fields: [author_id], references: [id])
-  author_id Int
+    author    User @relation(fields: [author_id], references: [id])
+    author_id Int
 
-  comments  Comment[]
-  reactions Reaction[]
+    comments  Comment[]
+    reactions Reaction[]
 }
 
 model Comment {
-  id         Int       @id @default(autoincrement())
-  content    String
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
+    id         Int       @id @default(autoincrement())
+    content    String
+    created_at DateTime  @default(now())
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime?
 
-  author    User @relation(fields: [author_id], references: [id])
-  author_id Int
+    author    User @relation(fields: [author_id], references: [id])
+    author_id Int
 
-  post    Post @relation(fields: [post_id], references: [id])
-  post_id Int
+    post    Post @relation(fields: [post_id], references: [id])
+    post_id Int
 
-  parent    Comment?  @relation("Replies", fields: [parent_id], references: [id])
-  parent_id Int? // This field is optional
-  replies   Comment[] @relation("Replies")
+    parent    Comment?  @relation("Replies", fields: [parent_id], references: [id])
+    parent_id Int? // This field is optional
+    replies   Comment[] @relation("Replies")
 }
 
 model Reaction {
-  id            Int      @id @default(autoincrement())
-  reaction_type String
-  created_at    DateTime @default(now())
+    id            Int      @id @default(autoincrement())
+    reaction_type String
+    created_at    DateTime @default(now())
 
-  user    User @relation(fields: [user_id], references: [id])
-  user_id Int
+    user    User @relation(fields: [user_id], references: [id])
+    user_id Int
 
-  post    Post @relation(fields: [post_id], references: [id])
-  post_id Int
+    post    Post @relation(fields: [post_id], references: [id])
+    post_id Int
 
-  @@unique([user_id, post_id])
+    @@unique([user_id, post_id])
 }
 
 model Follows {
-  follower_id Int
-  follower    User @relation("Follower", fields: [follower_id], references: [id])
+    follower_id Int
+    follower    User @relation("Follower", fields: [follower_id], references: [id])
 
-  following_id Int
-  following    User @relation("Following", fields: [following_id], references: [id])
+    following_id Int
+    following    User @relation("Following", fields: [following_id], references: [id])
 
-  status String @default("pending") // Can be "pending", "accepted", "declined"
+    status String @default("pending") // Can be "pending", "accepted", "declined"
 
-  created_at DateTime @default(now())
+    created_at DateTime @default(now())
 
-  @@id([follower_id, following_id])
+    @@id([follower_id, following_id])
 }
 
 model Conversation {
-  id           Int       @id @default(autoincrement())
-  name         String? // Optional name for group chats
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  participants User[]    @relation("Participants")
-  messages     Message[]
+    id           Int       @id @default(autoincrement())
+    name         String? // Optional name for group chats
+    created_at   DateTime  @default(now())
+    updated_at   DateTime  @updatedAt
+    participants User[]    @relation("Participants")
+    messages     Message[]
 }
 
 model Message {
-  id         Int      @id @default(autoincrement())
-  content    String
-  created_at DateTime @default(now())
+    id         Int      @id @default(autoincrement())
+    content    String
+    created_at DateTime @default(now())
 
-  sender    User @relation(fields: [sender_id], references: [id])
-  sender_id Int
+    sender    User @relation(fields: [sender_id], references: [id])
+    sender_id Int
 
-  conversation    Conversation @relation(fields: [conversation_id], references: [id])
-  conversation_id Int
+    conversation    Conversation @relation(fields: [conversation_id], references: [id])
+    conversation_id Int
 }
 
 model Friendship {
-  user_a_id Int
-  user_a    User @relation("UserA", fields: [user_a_id], references: [id])
+    user_a_id Int
+    user_a    User @relation("UserA", fields: [user_a_id], references: [id])
 
-  user_b_id Int
-  user_b    User @relation("UserB", fields: [user_b_id], references: [id])
+    user_b_id Int
+    user_b    User @relation("UserB", fields: [user_b_id], references: [id])
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+    num_messages  Int @default(0)
+    num_comments  Int @default(0)
+    num_reactions Int @default(0)
+    friend_score  Int @default(0)
 
-  @@id([user_a_id, user_b_id])
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    @@id([user_a_id, user_b_id])
 }
 
 model Block {
-  blocker_id Int
-  blocker    User @relation("Blocking", fields: [blocker_id], references: [id], onDelete: Cascade)
+    blocker_id Int
+    blocker    User @relation("Blocking", fields: [blocker_id], references: [id], onDelete: Cascade)
 
-  blocked_id Int
-  blocked    User @relation("Blocked", fields: [blocked_id], references: [id], onDelete: Cascade)
+    blocked_id Int
+    blocked    User @relation("Blocked", fields: [blocked_id], references: [id], onDelete: Cascade)
 
-  created_at DateTime @default(now())
+    created_at DateTime @default(now())
 
-  @@id([blocker_id, blocked_id])
+    @@id([blocker_id, blocked_id])
 }

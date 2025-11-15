@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Friendship" ADD COLUMN     "friend_score" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "num_comments" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "num_messages" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "num_reactions" INTEGER NOT NULL DEFAULT 0;

@@ -2,204 +2,204 @@ import { ReactNode } from 'react';
 import { Socket } from 'socket.io-client';
 
 export interface User {
-  id: number;
-  username: string;
-  email?: string;
-  picture_url?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  bio?: string | null;
-  date_of_birth?: string | null;
-  phone?: string | null;
-  alternate_email?: string | null;
-  created_at?: string;
-  settings?: { is_private?: boolean };
-  privacy_settings?: any;
+    id: number;
+    username: string;
+    email?: string;
+    picture_url?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    bio?: string | null;
+    date_of_birth?: string | null;
+    phone?: string | null;
+    alternate_email?: string | null;
+    created_at?: string;
+    settings?: { is_private?: boolean };
+    privacy_settings?: any;
 }
 
 export interface UserProfile extends User {
-  posts: Post[];
-  is_private?: boolean;
+    posts: Post[];
+    is_private?: boolean;
 }
 
 export interface MutualUser extends User {
-  score: number;
+    score: number;
 }
 
 export interface UserCardProps {
-  user: User;
+    user: User;
 }
 
 export interface Account {
-  user: User;
-  token: string;
+    user: User;
+    token: string;
 }
 
 export interface AuthContextType {
-  token: string | null;
-  user: User | null;
-  accounts: Account[];
-  login: (userData: User, userToken: string) => void;
-  signup: (username: string, email: string, password: string) => Promise<void>;
-  logout: (userIdToLogout?: number) => void;
-  switchAccount: (userIdToSwitchTo: number) => void;
-  socket: AppSocket | null;
-  notifications: Notification[];
-  clearNotifications: () => void;
+    token: string | null;
+    user: User | null;
+    accounts: Account[];
+    login: (userData: User, userToken: string) => void;
+    signup: (username: string, email: string, password: string) => Promise<void>;
+    logout: (userIdToLogout?: number) => void;
+    switchAccount: (userIdToSwitchTo: number) => void;
+    socket: AppSocket | null;
+    notifications: Notification[];
+    clearNotifications: () => void;
 }
 
 export interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
+    theme: Theme;
+    toggleTheme: () => void;
 }
 
 export interface Post {
-  id: number | string;
-  content: string;
-  author_id: number | string;
-  author: User;
-  media_url?: string | null;
-  created_at?: string;
+    id: number | string;
+    content: string;
+    author_id: number | string;
+    author: User;
+    media_url?: string | null;
+    created_at?: string;
 }
 
 export interface CreatePostFormProps {
-  onPostCreated: () => void;
+    onPostCreated: () => void;
 }
 
 export interface PostListProps {
-  posts: Post[];
-  onSavePost?: (postId: number | string, newContent: string) => Promise<void>;
-  onDeletePost?: (postId: number | string) => Promise<void>;
+    posts: Post[];
+    onSavePost?: (postId: number | string, newContent: string) => Promise<void>;
+    onDeletePost?: (postId: number | string) => Promise<void>;
 }
 
 export interface Comment {
-  id: number | string;
-  content: string;
-  author: User;
-  replies?: Comment[];
+    id: number | string;
+    content: string;
+    author: User;
+    replies?: Comment[];
 }
 
 export interface CreateCommentFormProps {
-  postId: number | string;
-  parentId?: number | string | null;
-  onCommentCreated: () => void;
+    postId: number | string;
+    parentId?: number | string | null;
+    onCommentCreated: () => void;
 }
 
 export interface CommentProps {
-  comment: Comment;
-  postId: number | string;
-  onSaveComment: (commentId: number | string, content: string) => void;
-  onDeleteComment: (commentId: number | string) => void;
-  onCommentCreated: () => void;
+    comment: Comment;
+    postId: number | string;
+    onSaveComment: (commentId: number | string, content: string) => void;
+    onDeleteComment: (commentId: number | string) => void;
+    onCommentCreated: () => void;
 }
 
 export interface CommentSectionProps {
-  postId: number | string;
+    postId: number | string;
 }
 
 export interface CommentListProps {
-  comments: Comment[];
-  postId: number | string;
-  onSaveComment: (commentId: number | string, content: string) => void;
-  onDeleteComment: (commentId: number | string) => void;
-  onCommentCreated: () => void;
+    comments: Comment[];
+    postId: number | string;
+    onSaveComment: (commentId: number | string, content: string) => void;
+    onDeleteComment: (commentId: number | string) => void;
+    onCommentCreated: () => void;
 }
 
 export interface MessageSender {
-  id: number | string;
-  username: string;
-  picture_url?: string | null;
+    id: number | string;
+    username: string;
+    picture_url?: string | null;
 }
 
 export interface Message {
-  id: number | string;
-  content: string;
-  sender_id: number | string;
-  conversation_id: number | string;
-  sender?: MessageSender;
+    id: number | string;
+    content: string;
+    sender_id: number | string;
+    conversation_id: number | string;
+    sender?: MessageSender;
 }
 
 export interface MessagePreview {
-  id: number | string;
-  content: string;
-  sender?: {
     id: number | string;
-    username?: string;
-  };
+    content: string;
+    sender?: {
+        id: number | string;
+        username?: string;
+    };
 }
 
 export interface Conversation {
-  id: number | string;
-  name?: string | null;
-  participants: User[];
-  messages: MessagePreview[];
+    id: number | string;
+    name?: string | null;
+    participants: User[];
+    messages: MessagePreview[];
 }
 
 export interface ConversationListProps {
-  onSelectConversation: (conversationId: number | string) => void;
-  refreshKey?: number;
+    onSelectConversation: (conversationId: number | string) => void;
+    refreshKey?: number;
 }
 
 export interface ChatWindowProps {
-  conversationId: string;
+    conversationId: string;
 }
 
 export interface NewMessageData {
-  content: string;
-  sender_id: number | string;
-  conversation_id: string;
+    content: string;
+    sender_id: number | string;
+    conversation_id: string;
 }
 
 export interface FollowData {
-  follower_id?: number;
-  following_id: number;
-  follower?: User;
-  following?: User;
-  status: string;
+    follower_id?: number;
+    following_id: number;
+    follower?: User;
+    following?: User;
+    status: string;
 }
 
 export interface FollowRequest {
-  follower_id: number | string;
-  follower: User;
+    follower_id: number | string;
+    follower: User;
 }
 
 export interface Reaction {
-  id: number | string;
-  user_id: number | string;
-  reaction_type: ReactionKey;
+    id: number | string;
+    user_id: number | string;
+    reaction_type: ReactionKey;
 }
 
 export interface ReactionSectionProps {
-  postId: number | string;
+    postId: number | string;
 }
 
 export interface ApiError {
-  error: string;
+    error: string;
 }
 
 export interface Notification {
-  message: string;
-  type: string;
-  timestamp: Date;
+    message: string;
+    type: string;
+    timestamp: Date;
 }
 
 export interface ServerToClientEvents {
-  receive_message: (message: Message) => void;
-  receive_notification: (notification: { message: string, type: string }) => void;
+    receive_message: (message: Message) => void;
+    receive_notification: (notification: { message: string, type: string }) => void;
 }
 
 export interface ClientToServerEvents {
-  authenticate: (token: string) => void;
-  join_conversation: (conversationId: string) => void;
-  send_message: (messageData: NewMessageData) => void;
+    authenticate: (token: string) => void;
+    join_conversation: (conversationId: string) => void;
+    send_message: (messageData: NewMessageData) => void;
 }
 
 export interface ProviderProps {
-  children: ReactNode;
+    children: ReactNode;
 }
 
 export interface ProtectedRouteProps {
-  children: ReactNode;
+    children: ReactNode;
 }
 
 export type FeedType = 'algorithmic' | 'chronological';

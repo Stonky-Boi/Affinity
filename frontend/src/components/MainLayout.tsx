@@ -6,39 +6,39 @@ import { useTheme } from '../context/ThemeContext.tsx';
 import { Sun, Moon } from 'lucide-react';
 
 function MainLayout() {
-  const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+    const { user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
 
-  return (
-    <div>
-      {user && (
-        <nav className="p-4 bg-surface border-b border-primary-border flex justify-between items-center">
-          <Link to="/" className="text-xl font-bold text-accent">Affinity</Link>
-          <div className="flex items-center">
-            <span className="mr-4 font-semibold text-primary-text">Welcome, {user.username}!</span>
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-primary-border text-primary-text"
-              aria-label="Toggle theme"
-            >
-              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-            </button>
-          </div>
-        </nav>
-      )}
-      <div className="flex h-[calc(100vh-65px)] bg-background">
-        <div className="w-1/5 border-r border-primary-border bg-surface overflow-y-auto scrollbar-hide">
-          <Sidebar />
+    return (
+        <div>
+            {user && (
+                <nav className="p-4 bg-surface border-b border-primary-border flex justify-between items-center">
+                    <Link to="/" className="text-xl font-bold text-accent">Affinity</Link>
+                    <div className="flex items-center">
+                        <span className="mr-4 font-semibold text-primary-text">Welcome, {user.username}!</span>
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 rounded-full hover:bg-primary-border text-primary-text"
+                            aria-label="Toggle theme"
+                        >
+                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                        </button>
+                    </div>
+                </nav>
+            )}
+            <div className="flex h-[calc(100vh-65px)] bg-background">
+                <div className="w-1/5 border-r border-primary-border bg-surface overflow-y-auto scrollbar-hide">
+                    <Sidebar />
+                </div>
+                <main className="w-3/5 overflow-y-auto scrollbar-hide">
+                    <Outlet />
+                </main>
+                <div className="w-1/5 border-l border-primary-border bg-surface overflow-y-auto scrollbar-hide">
+                    <RightPanel />
+                </div>
+            </div>
         </div>
-        <main className="w-3/5 overflow-y-auto scrollbar-hide">
-          <Outlet />
-        </main>
-        <div className="w-1/5 border-l border-primary-border bg-surface overflow-y-auto scrollbar-hide">
-          <RightPanel />
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default MainLayout;

@@ -11,22 +11,22 @@ import PublicProfilePage from './pages/PublicProfilePage.tsx';
 import NotificationsPage from './pages/NotificationsPage.tsx';
 
 function App() {
-  return (
-    <div className="bg-background text-primary-text min-h-screen transition-colors duration-300">
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/create" element={<CreatePostPage />} />
-          <Route path="/conversations" element={<ConversationsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/:username" element={<PublicProfilePage />} />
-        </Route>
-      </Routes>
-    </div>
-  );
+    return (
+        <div className="bg-background text-primary-text min-h-screen transition-colors duration-300">
+            <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/create" element={<CreatePostPage />} />
+                    <Route path="/conversations" element={<ConversationsPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/notifications" element={<NotificationsPage />} />
+                    <Route path="/:username" element={<PublicProfilePage />} />
+                </Route>
+            </Routes>
+        </div>
+    );
 }
 
 export default App;
