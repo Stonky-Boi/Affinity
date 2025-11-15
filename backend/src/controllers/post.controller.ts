@@ -7,10 +7,10 @@ import { Server } from 'socket.io';
 
 export const createPost = async (req: AuthRequest, res: Response) => {
     const author_id = req.user!.userId;
-    const { content } = req.body;
+    const { content, media_url } = req.body;
     try {
         const newPost = await prisma.post.create({
-            data: { content, author_id },
+            data: { content, author_id, media_url },
         });
         res.json(newPost);
     } catch (error: any) {

@@ -6,6 +6,7 @@ import commentRouter from './comment.routes';
 import followRouter from './follow.routes';
 import conversationRouter from './conversation.routes';
 import blockRouter from './block.routes';
+import uploadRouter from './upload.routes';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/comments', commentRouter);
 router.use('/follows', followRouter);
 router.use('/conversations', conversationRouter);
 router.use('/block', blockRouter);
+router.use('/upload', uploadRouter);
 
 export default router;

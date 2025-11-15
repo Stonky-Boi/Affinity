@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
 import { SkeletonLoader } from '../components/SkeletonLoader';
+import { uploadToCloudinary } from '../utils/upload';
 
 function ProfilePage() {
     const { user, token, login, logout } = useAuth();
@@ -9,7 +10,7 @@ function ProfilePage() {
         first_name: user?.first_name || '',
         last_name: user?.last_name || '',
         bio: user?.bio || '',
-        picture_url: user?.picture_url || '',
+        picture_url: user?.picture_url || null,
         date_of_birth: user?.date_of_birth ? user.date_of_birth.split('T')[0] : '',
         phone: user?.phone || '',
         alternate_email: user?.alternate_email || '',
@@ -20,6 +21,7 @@ function ProfilePage() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
     const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
     const [blockError, setBlockError] = useState<string | null>(null);
@@ -112,11 +114,59 @@ function ProfilePage() {
         }
     };
 
+    const handleProfilePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0 || !token) {
+            return;
+        }
+        const file = e.target.files[0];
+        setIsUploading(true);
+        setFormState({ error: null, success: false });
+        try {
+            const secure_url = await uploadToCloudinary(file, token);
+            setFormData(prev => ({ ...prev, picture_url: secure_url }));
+            setFormState({ error: null, success: true });
+        } catch (err: any) {
+            setFormState({ error: err.message, success: false });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const inputClasses = "p-2 border border-primary-border rounded-lg bg-background text-primary-text placeholder-secondary-text";
 
     return (
         <div className="p-8">
             <h1 className="text-2xl font-bold mb-6 text-primary-text">Edit Your Profile</h1>
+            <div className="mb-4">
+                <img
+                    src={formData.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${user?.username}`}
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full object-cover mb-2"
+                />
+                <div className="flex items-center gap-4">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfilePicChange}
+                        disabled={isUploading}
+                        className="text-sm text-secondary-text file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-border file:text-primary-text hover:file:brightness-90"
+                    />
+                    {formData.picture_url && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setFormData(prev => ({ ...prev, picture_url: null }));
+                                setFormState({ error: null, success: false });
+                            }}
+                            disabled={isUploading}
+                            className="px-4 py-2 bg-red-600/10 text-red-500 text-sm font-semibold rounded-lg hover:bg-red-600/20"
+                        >
+                            Remove
+                        </button>
+                    )}
+                </div>
+                {isUploading && <p className="text-accent text-sm mt-2">Uploading...</p>}
+            </div>
             <form onSubmit={handleSave} className="space-y-4 max-w-2xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input name="first_name" value={formData.first_name} onChange={handleChange} placeholder="First Name" className={inputClasses} />
@@ -124,7 +174,6 @@ function ProfilePage() {
                 </div>
                 <textarea name="bio" value={formData.bio} onChange={handleChange} placeholder="Your Bio" className={`w-full ${inputClasses}`} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input name="picture_url" value={formData.picture_url} onChange={handleChange} placeholder="Profile Picture URL" className={inputClasses} />
                     <input name="date_of_birth" type="date" value={formData.date_of_birth} onChange={handleChange} className={inputClasses} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

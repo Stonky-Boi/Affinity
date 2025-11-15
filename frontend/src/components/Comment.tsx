@@ -21,6 +21,8 @@ function Comment({
         setIsEditing(false);
     };
 
+    const profilePic = comment.author.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${comment.author.username}`;
+
     return (
         <div className="ml-4 pl-4 border-l border-primary-border">
             <div className="text-sm p-2 bg-background rounded-lg">
@@ -37,19 +39,28 @@ function Comment({
                         </div>
                     </div>
                 ) : (
-                    <div>
+                    <div className="flex gap-3">
                         <Link to={`/${comment.author.username}`}>
-                            <p className="font-semibold text-secondary-text hover:underline">{comment.author.username}</p>
+                            <img
+                                src={profilePic}
+                                alt={comment.author.username}
+                                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                            />
                         </Link>
-                        <p className="text-primary-text">{comment.content}</p>
-                        <div className="mt-1 flex items-center gap-4">
-                            <button onClick={() => setIsReplying(!isReplying)} className="text-xs font-semibold text-secondary-text hover:underline">Reply</button>
-                            {user && user.id === comment.author.id && (
-                                <>
-                                    <button onClick={() => setIsEditing(true)} className="text-xs font-semibold text-secondary-text hover:underline">Edit</button>
-                                    <button onClick={() => onDeleteComment(comment.id)} className="text-xs font-semibold text-red-500 hover:underline">Delete</button>
-                                </>
-                            )}
+                        <div className="flex-grow">
+                            <Link to={`/${comment.author.username}`}>
+                                <p className="font-semibold text-secondary-text hover:underline">{comment.author.username}</p>
+                            </Link>
+                            <p className="text-primary-text">{comment.content}</p>
+                            <div className="mt-1 flex items-center gap-4">
+                                <button onClick={() => setIsReplying(!isReplying)} className="text-xs font-semibold text-secondary-text hover:underline">Reply</button>
+                                {user && user.id === comment.author.id && (
+                                    <>
+                                        <button onClick={() => setIsEditing(true)} className="text-xs font-semibold text-secondary-text hover:underline">Edit</button>
+                                        <button onClick={() => onDeleteComment(comment.id)} className="text-xs font-semibold text-red-500 hover:underline">Delete</button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

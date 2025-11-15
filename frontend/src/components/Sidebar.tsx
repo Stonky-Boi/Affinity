@@ -38,7 +38,7 @@ function Sidebar() {
 
     return (
         <div className="p-4 h-full flex flex-col justify-between text-primary-text relative">
-            <div>
+            <div className="flex-shrink overflow-y-auto scrollbar-hide">
                 <nav>
                     <ul>
                         {navItems.map((item) => {
@@ -68,7 +68,7 @@ function Sidebar() {
                     </ul>
                 </nav>
             </div>
-            <div>
+            <div className="flex-shrink-0">
                 <button onClick={() => setIsSwitchModalOpen(true)} className="w-full flex items-center text-left p-2 text-md text-secondary-text rounded-lg hover:bg-primary-border transition-colors duration-200">
                     <Users size={20} className="mr-3" />
                     Switch Accounts
@@ -79,7 +79,7 @@ function Sidebar() {
                 </button>
             </div>
             {isSwitchModalOpen && (
-                <div className="absolute bottom-16 left-2 right-2 mb-2 p-4 bg-surface border border-primary-border rounded-lg shadow-lg z-20">
+                <div className="absolute bottom-16 left-2 w-64 mb-2 p-4 bg-surface border border-primary-border rounded-lg shadow-lg z-20">
                     <h3 className="font-semibold mb-2 text-primary-text">Switch Account</h3>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                         {accounts.map(acc => {

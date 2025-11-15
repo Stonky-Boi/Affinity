@@ -2,6 +2,10 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+html {
+  font-size: 14px; 
+}
+
 /* For Webkit browsers (Chrome, Safari, Edge) */
 .scrollbar-hide::-webkit-scrollbar {
     display: none;

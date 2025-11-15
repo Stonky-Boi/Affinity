@@ -27,13 +27,13 @@ function MainLayout() {
                 </nav>
             )}
             <div className="flex h-[calc(100vh-65px)] bg-background">
-                <div className="w-1/5 border-r border-primary-border bg-surface overflow-y-auto scrollbar-hide">
+                <div className="w-2/12 border-r border-primary-border bg-surface relative z-10">
                     <Sidebar />
                 </div>
-                <main className="w-3/5 overflow-y-auto scrollbar-hide">
+                <main className="w-8/12 overflow-y-auto scrollbar-hide">
                     <Outlet />
                 </main>
-                <div className="w-1/5 border-l border-primary-border bg-surface overflow-y-auto scrollbar-hide">
+                <div className="w-2/12 border-l border-primary-border bg-surface overflow-y-auto scrollbar-hide">
                     <RightPanel />
                 </div>
             </div>

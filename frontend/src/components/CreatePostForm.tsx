@@ -1,13 +1,35 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { CreatePostFormProps } from '../types';
+import { uploadToCloudinary } from '../utils/upload';
+import { X } from 'lucide-react';
+import MediaRenderer from './MediaRenderer';
 
 function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
     const [content, setContent] = useState('');
     const [mediaUrl, setMediaUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { user, token } = useAuth();
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0 || !token) {
+            return;
+        }
+        const file = e.target.files[0];
+        setIsUploading(true);
+        setError(null);
+
+        try {
+            const secure_url = await uploadToCloudinary(file, token);
+            setMediaUrl(secure_url);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -53,22 +75,43 @@ function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                     onChange={(e) => setContent(e.target.value)}
                     required
                 ></textarea>
-                <input
-                    type="text"
-                    className="w-full p-2 border border-primary-border rounded-lg bg-background text-primary-text placeholder-secondary-text"
-                    placeholder="Image URL (optional)"
-                    value={mediaUrl}
-                    onChange={(e) => setMediaUrl(e.target.value)}
-                />
+                {mediaUrl ? (
+                    <div className="relative">
+                        <MediaRenderer
+                            url={mediaUrl}
+                            alt="Upload preview"
+                            className="max-h-96 rounded-lg border border-primary-border"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setMediaUrl('')}
+                            className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/75"
+                            aria-label="Remove image"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="w-full p-2 border border-primary-border rounded-lg bg-background">
+                        <input
+                            type="file"
+                            accept="image/*,video/*,audio/*"
+                            onChange={handleFileChange}
+                            disabled={isUploading}
+                            className="text-sm text-secondary-text file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-border file:text-primary-text hover:file:brightness-90"
+                        />
+                    </div>
+                )}
+                {isUploading && <p className="text-accent text-sm">Uploading media...</p>}
                 {error && (
                     <p className="text-red-500 text-sm">{error}</p>
                 )}
                 <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-accent text-white font-semibold rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-90" // Added transition, scale
+                    disabled={isSubmitting || isUploading}
+                    className="px-4 py-2 bg-accent text-white font-semibold rounded-lg ... "
                 >
-                    {isSubmitting ? 'Posting...' : 'Post'}
+                    {isSubmitting ? 'Posting...' : (isUploading ? 'Waiting...' : 'Post')}
                 </button>
             </form>
         </div>
