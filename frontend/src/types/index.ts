@@ -15,6 +15,7 @@ export interface User {
     created_at?: string;
     settings?: { is_private?: boolean };
     privacy_settings?: any;
+    participants?: Participant[];
 }
 
 export interface UserProfile extends User {
@@ -117,11 +118,13 @@ export interface Message {
     sender_id: number | string;
     conversation_id: number | string;
     sender?: MessageSender;
+    deleted_at?: string | null;
 }
 
 export interface MessagePreview {
     id: number | string;
     content: string;
+    deleted_at?: string | null;
     sender?: {
         id: number | string;
         username?: string;
@@ -131,7 +134,9 @@ export interface MessagePreview {
 export interface Conversation {
     id: number | string;
     name?: string | null;
-    participants: User[];
+    picture_url?: string | null;
+    type?: "DIRECT" | "GROUP";
+    participants: Participant[];
     messages: MessagePreview[];
 }
 
@@ -140,8 +145,16 @@ export interface ConversationListProps {
     refreshKey?: number;
 }
 
+export interface Participant {
+    user_id: number;
+    conversation_id: number;
+    role: Role;
+    user: User;
+}
+
 export interface ChatWindowProps {
     conversationId: string;
+    onClose: () => void;
 }
 
 export interface NewMessageData {
@@ -202,6 +215,7 @@ export interface ProtectedRouteProps {
     children: ReactNode;
 }
 
+export type Role = "MEMBER" | "ADMIN";
 export type FeedType = 'algorithmic' | 'chronological';
 export type ProfilePageView = 'edit' | 'followers' | 'following';
 export type PublicProfilePageView = 'posts' | 'mutuals' | 'followers' | 'following';

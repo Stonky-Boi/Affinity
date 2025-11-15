@@ -85,7 +85,13 @@ function ConversationsPage() {
             </div>
             <main className="w-2/3 flex flex-col">
                 {selectedConversationId ? (
-                    <ChatWindow conversationId={String(selectedConversationId)} />
+                    <ChatWindow
+                        conversationId={String(selectedConversationId)}
+                        onClose={() => {
+                            setSelectedConversationId(null);
+                            setRefreshKey(prev => prev + 1);
+                        }}
+                    />
                 ) : (
                     <div className="flex items-center justify-center h-full">
                         <p className="text-secondary-text">Select a conversation to start chatting</p>

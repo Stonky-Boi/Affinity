@@ -49,17 +49,18 @@ export const handleSocketEvents = (io: Server) => {
                     data: { content, sender_id, conversation_id: convoIdInt },
                     include: { sender: true },
                 });
-
-                // --- START: FRIENDSHIP COUNTER ---
                 const conversation = await prisma.conversation.findUnique({
                     where: { id: convoIdInt },
-                    include: { participants: { select: { id: true } } }
+                    include: {
+                        participants: {
+                            select: { user_id: true }
+                        }
+                    }
                 });
-
-                if (conversation && conversation.participants.length === 2) {
-                    const otherUser = conversation.participants.find(p => p.id !== sender_id);
+                if (conversation && conversation.type === 'DIRECT' && conversation.participants.length === 2) {
+                    const otherUser = conversation.participants.find(p => p.user_id !== sender_id);
                     if (otherUser) {
-                        await updateFriendshipCounters(sender_id, otherUser.id, 'num_messages', 'increment');
+                        await updateFriendshipCounters(sender_id, otherUser.user_id, 'num_messages', 'increment');
                     }
                 }
                 io.to(conversation_id).emit('receive_message', newMessage);

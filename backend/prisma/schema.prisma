@@ -32,14 +32,16 @@ model User {
     followers Follows[] @relation("Following")
     following Follows[] @relation("Follower")
 
-    conversations Conversation[] @relation("Participants")
-    messages      Message[]
+    participants Participant[]
+    messages     Message[]
 
     friendshipsA Friendship[] @relation("UserA")
     friendshipsB Friendship[] @relation("UserB")
 
-    blocking  Block[] @relation("Blocking")
-    blockedBy Block[] @relation("Blocked")
+    blocking       Block[]       @relation("Blocking")
+    blockedBy      Block[]       @relation("Blocked")
+    conversation   Conversation? @relation(fields: [conversationId], references: [id])
+    conversationId Int?
 }
 
 model UserSettings {
@@ -47,6 +49,23 @@ model UserSettings {
     user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
     is_private Boolean @default(false)
+}
+
+model Participant {
+    user_id Int
+    user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+    conversation_id Int
+    conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+    role Role @default(MEMBER)
+
+    @@id([user_id, conversation_id])
+}
+
+enum Role {
+    MEMBER
+    ADMIN
 }
 
 model Post {
@@ -112,23 +131,29 @@ model Follows {
 }
 
 model Conversation {
-    id           Int       @id @default(autoincrement())
-    name         String? // Optional name for group chats
-    created_at   DateTime  @default(now())
-    updated_at   DateTime  @updatedAt
-    participants User[]    @relation("Participants")
+    id          Int     @id @default(autoincrement())
+    name        String?
+    picture_url String?
+    type        String  @default("DIRECT") // "DIRECT" or "GROUP"
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    participants Participant[]
     messages     Message[]
+    users        User[]
 }
 
 model Message {
-    id         Int      @id @default(autoincrement())
+    id         Int       @id @default(autoincrement())
     content    String
-    created_at DateTime @default(now())
+    created_at DateTime  @default(now())
+    deleted_at DateTime?
 
     sender    User @relation(fields: [sender_id], references: [id])
     sender_id Int
 
-    conversation    Conversation @relation(fields: [conversation_id], references: [id])
+    conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
     conversation_id Int
 }
 

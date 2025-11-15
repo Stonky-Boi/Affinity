@@ -58,20 +58,18 @@ export const processFollowRequest = async (req: AuthRequest, res: Response) => {
             } else {
                 const otherUserFollowsBack = await prisma.follows.findFirst({
                     where: {
-                        follower_id: following_id, // The person I just followed
-                        following_id: follower_id, // Me
+                        follower_id: following_id,
+                        following_id: follower_id,
                         status: 'accepted'
                     }
                 });
-
                 if (otherUserFollowsBack) {
-                    // This is now a mutual follow, create the Friendship entry
                     const userA = Math.min(follower_id, following_id);
                     const userB = Math.max(follower_id, following_id);
                     await prisma.friendship.upsert({
                         where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
                         create: { user_a_id: userA, user_b_id: userB },
-                        update: {} // Do nothing if it already exists
+                        update: {}
                     });
                 }
                 try {
@@ -128,20 +126,18 @@ export const respondToRequest = async (req: AuthRequest, res: Response) => {
             });
             const iFollowThem = await prisma.follows.findFirst({
                 where: {
-                    follower_id: currentUserId, // Me
-                    following_id: follower_id,  // The person I just accepted
+                    follower_id: currentUserId,
+                    following_id: follower_id,
                     status: 'accepted'
                 }
             });
-
             if (iFollowThem) {
-                // This is now a mutual follow, create the Friendship entry
                 const userA = Math.min(currentUserId, follower_id);
                 const userB = Math.max(currentUserId, follower_id);
                 await prisma.friendship.upsert({
                     where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
                     create: { user_a_id: userA, user_b_id: userB },
-                    update: {} // Do nothing if it already exists
+                    update: {}
                 });
             }
             try {
