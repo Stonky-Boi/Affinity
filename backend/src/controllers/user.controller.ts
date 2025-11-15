@@ -41,6 +41,115 @@ export const getAllUsers = async (req: Request, res: Response) => {
     }
 };
 
+export const getSuggestedUsers = async (req: AuthRequest, res: Response) => {
+    const currentUserId = req.user!.userId;
+    const SUGGESTION_LIMIT = 10;
+    try {
+        // 1. Get IDs of users I already follow
+        const following = await prisma.follows.findMany({
+            where: { follower_id: currentUserId, status: 'accepted' },
+            select: { following_id: true }
+        });
+        const followingIds = new Set(following.map(f => f.following_id));
+        followingIds.add(currentUserId); // Also exclude myself
+
+        // 2. Get IDs of users I am blocked by or have blocked
+        const blockedUserIds = await getBlockedUserIds(currentUserId);
+        const blockedIdsSet = new Set(blockedUserIds);
+
+        // 3. Find "Friends of Friends"
+        const friendsOfFriends = await prisma.follows.findMany({
+            where: {
+                follower_id: { in: Array.from(followingIds) },
+                status: 'accepted',
+                following_id: { notIn: Array.from(followingIds) },
+            },
+            select: {
+                follower_id: true,
+                following_id: true,
+            }
+        });
+
+        // 4. Filter and Rank Suggestions
+        const suggestionScores = new Map<number, number>();
+        for (const fof of friendsOfFriends) {
+            const suggestionId = fof.following_id;
+            const mutualFriendId = fof.follower_id;
+            if (blockedIdsSet.has(suggestionId)) {
+                continue;
+            }
+            const score = await getFriendshipScore(suggestionId, mutualFriendId);
+            const currentScore = suggestionScores.get(suggestionId) || 0;
+            suggestionScores.set(suggestionId, currentScore + score);
+        }
+
+        // 5. Sort by score
+        const sortedSuggestions = Array.from(suggestionScores.entries()).sort(
+            (a, b) => b[1] - a[1]
+        );
+
+        // 6. Get top N user details
+        const topSuggestionIds = sortedSuggestions
+            .slice(0, SUGGESTION_LIMIT)
+            .map(entry => entry[0]);
+
+        const userMap = new Map((await prisma.user.findMany({
+            where: { id: { in: topSuggestionIds } },
+            select: {
+                id: true,
+                username: true,
+                picture_url: true,
+                first_name: true,
+                last_name: true
+            }
+        })).map(u => [u.id, u]));
+        
+        const finalSortedUsers = topSuggestionIds
+            .map(id => userMap.get(id))
+            .filter(user => user != null); // Filter out any nulls
+
+        // 7. Check if we need to fill
+        const needed = SUGGESTION_LIMIT - finalSortedUsers.length;
+        if (needed > 0) {
+            
+            // 8. Build the complete exclusion list
+            const exclusionIds = new Set([
+                ...Array.from(followingIds),  // People I follow + myself
+                ...Array.from(blockedIdsSet), // Blocked users
+                ...topSuggestionIds           // Users already in the FoF list
+            ]);
+
+            // 9. Fetch newest users as filler
+            const fillerUsers = await prisma.user.findMany({
+                where: {
+                    id: { notIn: Array.from(exclusionIds) }
+                },
+                orderBy: {
+                    created_at: 'desc' // "Newest users" logic
+                },
+                take: needed,
+                select: {
+                    id: true,
+                    username: true,
+                    picture_url: true,
+                    first_name: true,
+                    last_name: true
+                }
+            });
+
+            // 10. Combine lists and send
+            const combinedUsers = [...finalSortedUsers, ...fillerUsers];
+            return res.json(combinedUsers);
+        }
+        
+        // If no filler was needed, just send the original list
+        res.json(finalSortedUsers);
+    } catch (error: any) {
+        console.error("Error fetching suggestions:", error);
+        res.status(500).json({ error: 'Unable to fetch suggestions.' });
+    }
+};
+
 export const searchUsers = async (req: AuthRequest, res: Response) => {
     const currentUserId = req.user!.userId;
     const { q } = req.query;

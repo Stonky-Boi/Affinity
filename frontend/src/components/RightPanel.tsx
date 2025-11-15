@@ -39,7 +39,7 @@ function RightPanel() {
     );
 
     const { data: suggestedUsers, isLoading: isLoadingSuggested, error: suggestedError } = useApi<User[]>(
-        token ? '/api/users' : null, // <-- We will fix this URL later
+        token ? '/api/users/suggestions' : null,
         { skip: !!profileUsername || searchQuery.trim() !== '' }
     );
 
@@ -186,7 +186,7 @@ function RightPanel() {
             {!isLoading && !error && (
                 <div className="space-y-1">
                     {data && data.length > 0 ? (
-                        data.filter(u => u.id !== user?.id).map(renderUserListItem)
+                        data.filter(u => u && u.id !== user?.id).map(renderUserListItem)
                     ) : (
                         <p className="text-secondary-text text-sm">{title === 'Search Results' ? 'No users found.' : 'No suggestions found.'}</p>
                     )}

@@ -3,6 +3,7 @@ import { authenticateToken } from '../middleware/auth';
 import {
     deleteUser,
     getAllUsers,
+    getSuggestedUsers,
     searchUsers,
     getMutuals,
     getMutualsWithScore,
@@ -15,6 +16,7 @@ import {
 const router = Router();
 
 router.get('/', getAllUsers);
+router.get('/suggestions', authenticateToken, getSuggestedUsers);
 router.get('/search', authenticateToken, searchUsers);
 router.get('/mutuals', authenticateToken, getMutuals);
 router.patch('/profile', authenticateToken, updateUserProfile);
