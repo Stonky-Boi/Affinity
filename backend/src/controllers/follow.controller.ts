@@ -56,6 +56,24 @@ export const processFollowRequest = async (req: AuthRequest, res: Response) => {
                 }
                 res.json({ message: 'Follow request sent.' });
             } else {
+                const otherUserFollowsBack = await prisma.follows.findFirst({
+                    where: {
+                        follower_id: following_id, // The person I just followed
+                        following_id: follower_id, // Me
+                        status: 'accepted'
+                    }
+                });
+
+                if (otherUserFollowsBack) {
+                    // This is now a mutual follow, create the Friendship entry
+                    const userA = Math.min(follower_id, following_id);
+                    const userB = Math.max(follower_id, following_id);
+                    await prisma.friendship.upsert({
+                        where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
+                        create: { user_a_id: userA, user_b_id: userB },
+                        update: {} // Do nothing if it already exists
+                    });
+                }
                 try {
                     const followedUserSocketId = await redisClient.get(`userSocket:${following_id}`);
                     if (followedUserSocketId) {
@@ -108,6 +126,24 @@ export const respondToRequest = async (req: AuthRequest, res: Response) => {
                 },
                 data: { status: 'accepted' },
             });
+            const iFollowThem = await prisma.follows.findFirst({
+                where: {
+                    follower_id: currentUserId, // Me
+                    following_id: follower_id,  // The person I just accepted
+                    status: 'accepted'
+                }
+            });
+
+            if (iFollowThem) {
+                // This is now a mutual follow, create the Friendship entry
+                const userA = Math.min(currentUserId, follower_id);
+                const userB = Math.max(currentUserId, follower_id);
+                await prisma.friendship.upsert({
+                    where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
+                    create: { user_a_id: userA, user_b_id: userB },
+                    update: {} // Do nothing if it already exists
+                });
+            }
             try {
                 const followerSocketId = await redisClient.get(`userSocket:${follower_id}`);
                 if (followerSocketId) {

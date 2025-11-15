@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import prisma from '../db';
 import redisClient from '../redis';
 import jwt from 'jsonwebtoken';
+import { updateFriendshipCounters } from '../services/friendship.service';
 
 interface AuthenticatedSocket extends NodeJS.EventEmitter {
     id: string;
@@ -48,6 +49,19 @@ export const handleSocketEvents = (io: Server) => {
                     data: { content, sender_id, conversation_id: convoIdInt },
                     include: { sender: true },
                 });
+
+                // --- START: FRIENDSHIP COUNTER ---
+                const conversation = await prisma.conversation.findUnique({
+                    where: { id: convoIdInt },
+                    include: { participants: { select: { id: true } } }
+                });
+
+                if (conversation && conversation.participants.length === 2) {
+                    const otherUser = conversation.participants.find(p => p.id !== sender_id);
+                    if (otherUser) {
+                        await updateFriendshipCounters(sender_id, otherUser.id, 'num_messages', 'increment');
+                    }
+                }
                 io.to(conversation_id).emit('receive_message', newMessage);
             } catch (error: any) {
                 console.error("Error in send_message:", error);

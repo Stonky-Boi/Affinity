@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
+import { updateFriendshipCounters } from '../services/friendship.service';
 import { getBlockedUserIds } from '../services/block.service';
 import { Server } from 'socket.io';
 
@@ -68,6 +69,9 @@ export const createComment = async (req: AuthRequest, res: Response) => {
             data: { content, author_id, post_id: parseInt(postId), parent_id },
             include: { author: true },
         });
+        if (post.author_id !== author_id) {
+            await updateFriendshipCounters(author_id, post.author_id, 'num_comments', 'increment');
+        }
         if (post && post.author_id !== author_id) {
             try {
                 const authorSocketId = await redisClient.get(`userSocket:${post.author_id}`);
@@ -125,9 +129,18 @@ export const updateComment = async (req: AuthRequest, res: Response) => {
 export const deleteComment = async (req: AuthRequest, res: Response) => {
     try {
         const commentId = parseInt(req.params.id);
-        const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+        const comment = await prisma.comment.findUnique({
+            where: { id: commentId },
+            include: { post: { select: { author_id: true } } } // <-- Need post author
+        });
+        if (!comment) {
+            return res.status(404).json({ error: "Comment not found." });
+        }
         if (comment!.author_id !== req.user!.userId) {
             return res.status(403).json({ error: "You can only delete your own comments." });
+        }
+        if (comment.post && comment.post.author_id !== comment.author_id) {
+            await updateFriendshipCounters(comment.author_id, comment.post.author_id, 'num_comments', 'decrement');
         }
         await prisma.comment.update({
             where: { id: commentId },

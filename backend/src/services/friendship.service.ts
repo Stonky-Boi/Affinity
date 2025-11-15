@@ -19,46 +19,116 @@ const calculateScore = (counts: { messages: number, comments: number, reactions:
     return Math.round(normalizedScore);
 };
 
+export const updateFriendshipCounters = async (
+  userId1: number,
+  userId2: number,
+  metric: 'num_messages' | 'num_comments' | 'num_reactions',
+  operation: 'increment' | 'decrement'
+) => {
+  if (userId1 === userId2) return; // No friendship with oneself
+
+  const userA = Math.min(userId1, userId2);
+  const userB = Math.max(userId1, userId2);
+  const cacheKey = `friendScore:${userA}:${userB}`;
+
+  try {
+    const operationData = { [metric]: { [operation]: 1 } };
+    let updatedFriendship;
+
+    // 1. Increment or Decrement the counter
+    if (operation === 'increment') {
+      updatedFriendship = await prisma.friendship.upsert({
+        where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
+        create: { user_a_id: userA, user_b_id: userB, [metric]: 1 },
+        update: operationData,
+      });
+    } else {
+      // Decrement, but prevent going below 0
+      await prisma.friendship.updateMany({
+        where: {
+          user_a_id: userA,
+          user_b_id: userB,
+          [metric]: { gt: 0 } // Only update if count > 0
+        },
+        data: operationData,
+      });
+      // Get the resulting record
+      updatedFriendship = await prisma.friendship.findUnique({
+        where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
+      });
+    }
+
+    if (!updatedFriendship) return; // Nothing to do
+
+    // 2. Recalculate the score from the new counts
+    const newScore = calculateScore({
+      messages: updatedFriendship.num_messages,
+      comments: updatedFriendship.num_comments,
+      reactions: updatedFriendship.num_reactions,
+    });
+
+    // 3. Update the score in the database
+    await prisma.friendship.update({
+      where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
+      data: { friend_score: newScore },
+    });
+
+    // 4. Update the cache
+    await redisClient.set(cacheKey, newScore, { EX: CACHE_EXPIRATION_SECONDS });
+
+  } catch (e) {
+    console.error(`Failed to update friendship counters for ${userA}-${userB}:`, e);
+  }
+};
+
 export const getFriendshipScore = async (userId1: number, userId2: number): Promise<number> => {
-    if (userId1 === userId2) return 0;
-    const userA = Math.min(userId1, userId2);
-    const userB = Math.max(userId1, userId2);
-    const cacheKey = `friendScore:${userA}:${userB}`;
-    try {
-        const cachedScore = await redisClient.get(cacheKey);
-        if (cachedScore) {
-            return parseInt(cachedScore, 10);
-        }
-    } catch (e) {
-        console.error("Redis GET error in friendship.service:", e);
+  if (userId1 === userId2) return 0;
+  const userA = Math.min(userId1, userId2);
+  const userB = Math.max(userId1, userId2);
+  const cacheKey = `friendScore:${userA}:${userB}`;
+
+  // 1. Try cache first
+  try {
+    const cachedScore = await redisClient.get(cacheKey);
+    if (cachedScore) {
+      return parseInt(cachedScore, 10);
     }
-    try {
-        const [
-            messagesAB, messagesBA,
-            commentsAB, commentsBA,
-            reactionsAB, reactionsBA
-        ] = await Promise.all([
-            prisma.message.count({ where: { sender_id: userA, conversation: { participants: { some: { id: userB } } } } }),
-            prisma.message.count({ where: { sender_id: userB, conversation: { participants: { some: { id: userA } } } } }),
-            prisma.comment.count({ where: { author_id: userA, post: { author_id: userB }, deleted_at: null } }),
-            prisma.comment.count({ where: { author_id: userB, post: { author_id: userA }, deleted_at: null } }),
-            prisma.reaction.count({ where: { user_id: userA, post: { author_id: userB } } }),
-            prisma.reaction.count({ where: { user_id: userB, post: { author_id: userA } } })
-        ]);
-        const totalCounts = {
-            messages: messagesAB + messagesBA,
-            comments: commentsAB + commentsBA,
-            reactions: reactionsAB + reactionsBA
-        };
-        const newScore = calculateScore(totalCounts);
-        try {
-            await redisClient.set(cacheKey, newScore, { EX: CACHE_EXPIRATION_SECONDS });
-        } catch (e) {
-            console.error("Redis SET error in friendship.service:", e);
-        }
-        return newScore;
-    } catch (e) {
-        console.error("Failed to calculate friendship score:", e);
-        return 0;
+  } catch (e) {
+    console.error("Redis GET error in friendship.service:", e);
+  }
+
+  // 2. Cache miss, read from DB
+  try {
+    const friendship = await prisma.friendship.findUnique({
+      where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } }
+    });
+
+    if (!friendship) {
+      await redisClient.set(cacheKey, 0, { EX: CACHE_EXPIRATION_SECONDS });
+      return 0; // No interactions yet
     }
+
+    // 3. Recalculate score from raw counters (This is the bug fix)
+    const newScore = calculateScore({
+      messages: friendship.num_messages,
+      comments: friendship.num_comments,
+      reactions: friendship.num_reactions
+    });
+
+    // 4. If score in DB is stale, update it (but don't wait)
+    if (newScore !== friendship.friend_score) {
+      prisma.friendship.update({
+        where: { user_a_id_user_b_id: { user_a_id: userA, user_b_id: userB } },
+        data: { friend_score: newScore }
+      }).catch(err => console.error("Async friend_score update failed:", err));
+    }
+    
+    // 5. Update cache and return
+    await redisClient.set(cacheKey, newScore, { EX: CACHE_EXPIRATION_SECONDS });
+    return newScore;
+
+  } catch (e) {
+    console.error("Failed to get friendship score:", e);
+    return 0;
+  }
 };

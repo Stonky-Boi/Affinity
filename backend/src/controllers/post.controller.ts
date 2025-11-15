@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../db';
-import { getFriendshipScore } from '../services/friendship.service';
+import { getFriendshipScore, updateFriendshipCounters } from '../services/friendship.service';
 import { getBlockedUserIds } from '../services/block.service';
 import { Server } from 'socket.io';
 
@@ -187,6 +187,9 @@ export const processReaction = async (req: AuthRequest, res: Response) => {
         if (existingReaction) {
             if (existingReaction.reaction_type === reaction_type) {
                 await prisma.reaction.delete({ where: { id: existingReaction.id } });
+                if (post && post.author_id !== userId) {
+                    await updateFriendshipCounters(userId, post.author_id, 'num_reactions', 'decrement');
+                }
                 return res.json({ message: 'Reaction removed' });
             } else {
                 const updatedReaction = await prisma.reaction.update({
@@ -200,6 +203,9 @@ export const processReaction = async (req: AuthRequest, res: Response) => {
                 data: { user_id: userId, post_id: postId, reaction_type },
             });
             const post = await prisma.post.findUnique({ where: { id: postId } });
+            if (post && post.author_id !== userId) {
+                await updateFriendshipCounters(userId, post.author_id, 'num_reactions', 'increment');
+            }
             if (post && post.author_id !== userId) {
                 try {
                     const authorSocketId = await redisClient.get(`userSocket:${post.author_id}`);
