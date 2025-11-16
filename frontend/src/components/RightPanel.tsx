@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { User, UserProfile, FollowData, UserProfileResponse } from '../types';
 import { SkeletonLoader } from './SkeletonLoader.tsx';
+import ConfirmationModal from './ConfirmationModal';
 import { useApi } from '../hooks/useApi.ts';
 
 function RightPanel() {
@@ -13,6 +14,7 @@ function RightPanel() {
     const navigate = useNavigate();
     const [isBlocking, setIsBlocking] = useState(false);
     const [blockError, setBlockError] = useState<string | null>(null);
+    const [confirmBlock, setConfirmBlock] = useState(false);
 
     const fetchApi = async (url: string, options: RequestInit = {}) => {
         const defaultHeaders: HeadersInit = {
@@ -89,19 +91,19 @@ function RightPanel() {
     };
 
     const handleBlock = async () => {
-        if (!profileData || !token || isBlocking) return;
+        if (!profileData || !token) return;
         setIsBlocking(true);
         setBlockError(null);
         try {
             await fetchApi(`/api/block/user/${profileData.id}`, {
                 method: 'POST'
             });
-            alert("Block status updated.");
             navigate('/');
         } catch (err: any) {
             setBlockError(err.message);
         } finally {
             setIsBlocking(false);
+            setConfirmBlock(false);
         }
     };
 
@@ -143,11 +145,11 @@ function RightPanel() {
                             {buttonText}
                         </button>
                         <button
-                            onClick={handleBlock}
+                            onClick={() => setConfirmBlock(true)}
                             disabled={isBlocking}
                             className="mt-1 w-full py-1 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                         >
-                            {isBlocking ? '...' : 'Block User'}
+                            Block User
                         </button>
                         {blockError && (
                             <p className="text-red-500 text-xs mt-1">{blockError}</p>
@@ -214,6 +216,16 @@ function RightPanel() {
                     ? renderUserList('Search Results', searchResults, isLoadingSearch, searchError)
                     : renderUserList('People You May Know', suggestedUsers, isLoadingSuggested, suggestedError)
             )}
+            <ConfirmationModal
+                isOpen={confirmBlock && !!profileData}
+                onClose={() => setConfirmBlock(false)}
+                onConfirm={handleBlock}
+                title={`Block @${profileData?.username}?`}
+                message={`They will not be able to follow you, see your profile, or interact with your posts.${blockError ? `\n\nError: ${blockError}` : ''}`}
+                confirmText="Block"
+                confirmVariant="danger"
+                isLoading={isBlocking}
+            />
         </div>
     );
 }

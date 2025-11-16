@@ -5,6 +5,7 @@ import { useApi } from '../hooks/useApi';
 import type { Message, NewMessageData, ChatWindowProps, Conversation } from '../types';
 import { SkeletonLoader } from './SkeletonLoader';
 import ChatHeader from './ChatHeader';
+import ConfirmationModal from './ConfirmationModal';
 import GroupInfoModal from './GroupInfoModal';
 import { Trash2 } from 'lucide-react';
 
@@ -12,6 +13,8 @@ function ChatWindow({ conversationId, onClose }: ChatWindowProps) {
     const { user, token, socket } = useAuth();
     const [newMessage, setNewMessage] = useState('');
     const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+    const [isDeleteConvoModalOpen, setIsDeleteConvoModalOpen] = useState(false);
+    const [isDeletingConvo, setIsDeletingConvo] = useState(false);
     const [hoveredMessageId, setHoveredMessageId] = useState<string | number | null>(null);
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -78,20 +81,18 @@ function ChatWindow({ conversationId, onClose }: ChatWindowProps) {
 
     const handleDeleteConversation = async () => {
         if (!token || !conversation) return;
-        if (window.confirm("Are you sure you want to delete this chat? This will only remove it from your view.")) {
-            try {
-                const res = await fetch(`/api/conversations/${conversation.id}/leave`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.error || 'Failed to leave chat');
-                }
-                onClose();
-            } catch (err: any) {
-                alert(err.message);
-            }
+        setIsDeletingConvo(true);
+        try {
+            await fetch(`/api/conversations/${conversation.id}/leave`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            onClose();
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setIsDeletingConvo(false);
+            setIsDeleteConvoModalOpen(false);
         }
     };
 
@@ -125,7 +126,7 @@ function ChatWindow({ conversationId, onClose }: ChatWindowProps) {
             <ChatHeader
                 conversation={conversation}
                 onOpenInfo={() => setIsInfoModalOpen(true)}
-                onDeleteConversation={handleDeleteConversation}
+                onDeleteConversation={() => setIsDeleteConvoModalOpen(true)}
             />
             <div className="flex-grow p-4 overflow-y-auto">
                 <div className="space-y-1">
@@ -134,8 +135,8 @@ function ChatWindow({ conversationId, onClose }: ChatWindowProps) {
                         const previousMsg = messages ? messages[index - 1] : null;
                         const isGroup = conversation.type === 'GROUP';
                         const showSenderInfo = isGroup && (
-                            !previousMsg || 
-                            previousMsg.sender_id !== msg.sender_id || 
+                            !previousMsg ||
+                            previousMsg.sender_id !== msg.sender_id ||
                             !!previousMsg.deleted_at
                         );
                         const profilePic = msg.sender?.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${msg.sender?.username || '?'}`;
@@ -208,6 +209,16 @@ function ChatWindow({ conversationId, onClose }: ChatWindowProps) {
                     }}
                 />
             )}
+            <ConfirmationModal
+                isOpen={isDeleteConvoModalOpen}
+                onClose={() => setIsDeleteConvoModalOpen(false)}
+                onConfirm={handleDeleteConversation}
+                title="Delete Chat"
+                message="Are you sure you want to delete this chat? This will only remove it from your view."
+                confirmText="Delete"
+                confirmVariant="danger"
+                isLoading={isDeletingConvo}
+            />
         </div>
     );
 }

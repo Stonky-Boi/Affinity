@@ -70,7 +70,7 @@ export interface CreatePostFormProps {
 export interface PostListProps {
     posts: Post[];
     onSavePost?: (postId: number | string, newContent: string) => Promise<void>;
-    onDeletePost?: (postId: number | string) => Promise<void>;
+    onDeletePost?: (postId: number | string) => void | Promise<void>;
 }
 
 export interface Comment {

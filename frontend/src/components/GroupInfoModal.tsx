@@ -5,6 +5,7 @@ import { Conversation, Participant, Role } from '../types';
 import { X, Users, Camera, Edit2, Shield, Trash2, LogOut, UserPlus, MoreVertical, UserX, Check } from 'lucide-react';
 import { uploadToCloudinary } from '../utils/upload';
 import AddMemberModal from './AddMemberModal';
+import ConfirmationModal from './ConfirmationModal';
 
 interface GroupInfoModalProps {
     initialConversation: Conversation;
@@ -27,6 +28,11 @@ export default function GroupInfoModal({
     const [isAddingMember, setIsAddingMember] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [openMenuForUser, setOpenMenuForUser] = useState<number | null>(null);
+    type ConfirmAction = null | 'kick' | 'leave' | 'delete';
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+    const [targetParticipant, setTargetParticipant] = useState<Participant | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [groupName, setGroupName] = useState(conversation.name || '');
 
     // Get current user's role
@@ -114,46 +120,113 @@ export default function GroupInfoModal({
         } catch (err) { /* error is set by apiFetch */ }
     };
 
-    const handleKickParticipant = async (targetUser: Participant) => {
-        if (window.confirm(`Are you sure you want to kick ${targetUser.user.username}?`)) {
-            try {
-                await apiFetch(`/api/conversations/${conversation.id}/participants/${targetUser.user_id}`, {
-                    method: 'DELETE',
-                });
-                setConversation(prev => ({
-                    ...prev,
-                    participants: prev.participants.filter(p => p.user_id !== targetUser.user_id)
-                }));
-            } catch (err) { /* error is set by apiFetch */ }
+    const handleKickParticipant = async () => {
+        if (!targetParticipant) return;
+        setIsProcessing(true);
+        try {
+            await apiFetch(`/api/conversations/${conversation.id}/participants/${targetParticipant.user_id}`, {
+                method: 'DELETE',
+            });
+            setConversation(prev => ({
+                ...prev,
+                participants: prev.participants.filter(p => p.user_id !== targetParticipant.user_id)
+            }));
+        } catch (err) { /* error is set */ }
+        finally {
+            setIsProcessing(false);
+            setConfirmAction(null);
+            setTargetParticipant(null);
         }
     };
 
     // --- Group Actions ---
     const handleLeaveGroup = async () => {
-        if (window.confirm("Are you sure you want to leave this group?")) {
-            try {
-                await apiFetch(`/api/conversations/${conversation.id}/leave`, { method: 'DELETE' });
-                onConversationDeleted();
-            } catch (err) { /* error is set by apiFetch */ }
+        setIsProcessing(true);
+        try {
+            await apiFetch(`/api/conversations/${conversation.id}/leave`, { method: 'DELETE' });
+            onConversationDeleted();
+        } catch (err) { /* error is set */ }
+        finally {
+            setIsProcessing(false);
+            setConfirmAction(null);
         }
     };
 
     const handleDeleteGroup = async () => {
-        if (window.confirm("Are you sure you want to DELETE this group? This is permanent.")) {
-            try {
-                await apiFetch(`/api/conversations/${conversation.id}`, { method: 'DELETE' });
-                onConversationDeleted();
-            } catch (err) { /* error is set by apiFetch */ }
+        setIsProcessing(true);
+        try {
+            await apiFetch(`/api/conversations/${conversation.id}`, { method: 'DELETE' });
+            onConversationDeleted();
+        } catch (err) { /* error is set */ }
+        finally {
+            setIsProcessing(false);
+            setConfirmAction(null);
         }
+    };
+
+    const renderConfirmationModal = () => {
+        if (!confirmAction) return null;
+        let props = {
+            title: "Are you sure?",
+            message: "This action cannot be undone.",
+            confirmText: "Confirm",
+            onConfirm: () => { },
+        };
+        switch (confirmAction) {
+            case 'kick':
+                props.title = `Kick ${targetParticipant?.user.username}?`;
+                props.message = `Are you sure you want to kick ${targetParticipant?.user.username}? They will have to be re-invited.`;
+                props.confirmText = "Kick User";
+                props.onConfirm = handleKickParticipant;
+                break;
+            case 'leave':
+                props.title = "Leave Group?";
+                props.message = "Are you sure you want to leave this group? You will have to be re-invited.";
+                props.confirmText = "Leave";
+                props.onConfirm = handleLeaveGroup;
+                break;
+            case 'delete':
+                props.title = "Delete Group?";
+                props.message = "Are you sure you want to permanently delete this group? This action is final and cannot be undone.";
+                props.confirmText = "Delete Group";
+                props.onConfirm = handleDeleteGroup;
+                break;
+        }
+        return (
+            <ConfirmationModal
+                isOpen={!!confirmAction}
+                onClose={() => { setConfirmAction(null); setTargetParticipant(null); }}
+                onConfirm={props.onConfirm}
+                title={props.title}
+                message={props.message}
+                confirmText={props.confirmText}
+                confirmVariant="danger"
+                isLoading={isProcessing}
+            />
+        );
+    };
+
+    const handleCloseModal = () => {
+        setOpenMenuForUser(null);
+        onClose();
     };
 
     return (
         <>
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 p-4" onClick={onClose}>
-                <div className="bg-surface rounded-lg p-6 w-full max-w-md flex flex-col gap-4 max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div
+                className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 p-4"
+                onClick={handleCloseModal}
+            >
+                <div
+                    className="bg-surface rounded-lg p-6 w-full max-w-md flex flex-col gap-4 max-h-[80vh]"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuForUser(null);
+                    }}
+                >
                     <div className="flex justify-between items-center">
                         <h2 className="text-xl font-bold text-primary-text">Group Info</h2>
-                        <button onClick={onClose} className="p-1 rounded-full text-secondary-text hover:bg-primary-border">
+                        <button onClick={handleCloseModal} className="p-1 rounded-full text-secondary-text hover:bg-primary-border">
                             <X size={20} />
                         </button>
                     </div>
@@ -215,8 +288,15 @@ export default function GroupInfoModal({
                                 participant={p}
                                 isAdmin={isAdmin}
                                 isSelf={p.user_id === user?.id}
+                                isMenuOpen={openMenuForUser === p.user_id}
+                                onToggleMenu={() => setOpenMenuForUser(prev =>
+                                    prev === p.user_id ? null : p.user_id
+                                )}
                                 onRoleChange={handleRoleChange}
-                                onKick={handleKickParticipant}
+                                onKick={() => {
+                                    setTargetParticipant(p);
+                                    setConfirmAction('kick');
+                                }}
                             />
                         ))}
                     </div>
@@ -231,23 +311,23 @@ export default function GroupInfoModal({
                             </button>
                         )}
                         <button
-                            onClick={handleLeaveGroup}
+                            onClick={() => setConfirmAction('leave')} // <-- No window.confirm
                             className="flex items-center justify-center gap-2 w-full p-2 bg-red-600/10 text-red-500 font-semibold rounded-lg hover:bg-red-600/20"
                         >
                             <LogOut size={18} /> Leave Group
                         </button>
                         {isAdmin && (
                             <button
-                                onClick={handleDeleteGroup}
+                                onClick={() => setConfirmAction('delete')}
                                 className="flex items-center justify-center gap-2 w-full p-2 bg-red-600/10 text-red-500 font-semibold rounded-lg hover:bg-red-600/20"
                             >
                                 <Trash2 size={18} /> Delete Group
                             </button>
                         )}
                     </div>
-
                 </div>
             </div>
+            {renderConfirmationModal()}
             {isAddingMember && isAdmin && (
                 <AddMemberModal
                     conversation={conversation}
@@ -267,16 +347,28 @@ interface ParticipantItemProps {
     participant: Participant;
     isAdmin: boolean;
     isSelf: boolean;
+    isMenuOpen: boolean;
+    onToggleMenu: () => void;
     onRoleChange: (p: Participant, role: Role) => void;
     onKick: (p: Participant) => void;
 }
 
-const ParticipantItem: React.FC<ParticipantItemProps> = ({ participant, isAdmin, isSelf, onRoleChange, onKick }) => {
+const ParticipantItem: React.FC<ParticipantItemProps> = ({
+    participant,
+    isAdmin,
+    isSelf,
+    isMenuOpen,
+    onToggleMenu,
+    onRoleChange,
+    onKick
+}) => {
     const pfp = participant.user.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${participant.user.username}`;
-
     return (
-        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-primary-border/50">
-            <Link to={`/${participant.user.username}`} className="flex items-center gap-3">
+        <div
+            className="flex items-center justify-between p-2 rounded-lg hover:bg-primary-border/50"
+            onClick={() => onToggleMenu()}
+        >
+            <Link to={`/${participant.user.username}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-3">
                 <img src={pfp} alt={participant.user.username} className="w-8 h-8 rounded-full object-cover" />
                 <div>
                     <p className="font-semibold text-primary-text">{participant.user.username} {isSelf && '(You)'}</p>
@@ -284,11 +376,21 @@ const ParticipantItem: React.FC<ParticipantItemProps> = ({ participant, isAdmin,
                 </div>
             </Link>
             {isAdmin && !isSelf && (
-                <div className="relative group">
-                    <button className="p-1 rounded-full text-secondary-text hover:bg-primary-border">
+                <div className="relative">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleMenu();
+                        }}
+                        className="p-1 rounded-full text-secondary-text hover:bg-primary-border"
+                    >
                         <MoreVertical size={18} />
                     </button>
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-primary-border rounded-lg shadow-lg z-30 hidden group-hover:block">
+                    <div
+                        className={`absolute right-0 top-full mt-1 w-48 bg-surface border border-primary-border rounded-lg shadow-lg z-30 ${isMenuOpen ? 'block' : 'hidden'}`}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseLeave={() => onToggleMenu()}
+                    >
                         {participant.role === 'MEMBER' ? (
                             <button
                                 onClick={() => onRoleChange(participant, 'ADMIN')}

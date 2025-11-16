@@ -2,20 +2,24 @@ import { useState } from 'react';
 import PostList from '../components/PostList';
 import { useAuth } from '../context/AuthContext';
 import { PostSkeleton } from '../components/SkeletonLoader';
+import ConfirmationModal from '../components/ConfirmationModal';
 import type { Post, FeedType } from '../types';
 import { useApi } from '../hooks/useApi';
 
 function HomePage() {
     const { token } = useAuth();
     const [feedType, setFeedType] = useState<FeedType>('algorithmic');
+    const [postToDelete, setPostToDelete] = useState<string | number | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const { data: posts, isLoading, error, refresh } = useApi<Post[]>(
         `/api/posts/feed?sort=${feedType}`
     );
 
-    const handleDeletePost = async (postId: string | number) => {
-        if (!window.confirm("Are you sure you want to delete this post?")) return;
+    const handleDeletePost = async () => {
+        if (!postToDelete) return;
+        setIsDeleting(true);
         try {
-            await fetch(`/api/posts/${postId}`, {
+            await fetch(`/api/posts/${postToDelete}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -24,6 +28,9 @@ function HomePage() {
             refresh();
         } catch (error) {
             console.error("Failed to delete post:", error);
+        } finally {
+            setIsDeleting(false);
+            setPostToDelete(null);
         }
     };
 
@@ -77,11 +84,25 @@ function HomePage() {
                     <PostSkeleton />
                 </div>
             ) : (
-                !error && <PostList posts={posts || []} onSavePost={handleSavePost} onDeletePost={handleDeletePost} />
+                !error && <PostList
+                    posts={posts || []}
+                    onSavePost={handleSavePost}
+                    onDeletePost={(postId) => setPostToDelete(postId)}
+                />
             )}
             {posts && posts.length === 0 && !isLoading && (
                 <p className="p-8 text-secondary-text">No posts found.</p>
             )}
+            <ConfirmationModal
+                isOpen={!!postToDelete}
+                onClose={() => setPostToDelete(null)}
+                onConfirm={handleDeletePost}
+                title="Delete Post?"
+                message="Are you sure you want to permanently delete this post?"
+                confirmText="Delete"
+                confirmVariant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

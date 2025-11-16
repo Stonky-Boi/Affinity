@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { uploadToCloudinary } from '../utils/upload';
 
@@ -258,34 +259,16 @@ function ProfilePage() {
                     <p className="text-red-500 text-sm mt-2">{deleteError}</p>
                 )}
             </div>
-            {isDeleteModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 p-4">
-                    <div className="bg-surface rounded-lg p-6 w-full max-w-md shadow-lg">
-                        <h2 className="text-xl font-bold mb-4 text-red-500">Are you absolutely sure?</h2>
-                        <p className="text-primary-text mb-2">This action is permanent and cannot be undone.</p>
-                        <p className="text-secondary-text mb-4">All your data will be anonymized, and you will be logged out immediately.</p>
-                        {deleteError && (
-                            <p className="text-red-500 text-sm mt-2 text-center mb-2">{deleteError}</p>
-                        )}
-                        <div className="flex gap-4 mt-6">
-                            <button
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                disabled={isDeleting}
-                                className="flex-1 bg-primary-border text-primary-text font-semibold py-2 rounded-lg hover:brightness-95 disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleDeleteAccount}
-                                disabled={isDeleting}
-                                className="flex-1 bg-red-600 text-white font-semibold py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
-                            >
-                                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteAccount}
+                title="Are you absolutely sure?"
+                message={`This action is permanent and cannot be undone.\nAll your data will be anonymized, and you will be logged out immediately.${deleteError ? `\n\nError: ${deleteError}` : ''}`}
+                confirmText="Confirm Delete"
+                confirmVariant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

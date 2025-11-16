@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import CommentList from './CommentList';
 import CreateCommentForm from './CreateCommentForm';
 import { useAuth } from '../context/AuthContext';
 import type { Comment, CommentSectionProps } from '../types';
 import { useApi } from '../hooks/useApi';
 import { SkeletonLoader } from './SkeletonLoader';
+import ConfirmationModal from './ConfirmationModal';
 
 function CommentSection({ postId }: CommentSectionProps) {
     const { token } = useAuth();
+    const [commentToDelete, setCommentToDelete] = useState<string | number | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const { data: comments, isLoading, error, refresh: fetchComments } = useApi<Comment[]>(
         `/api/comments/post/${postId}`
     );
@@ -25,10 +29,12 @@ function CommentSection({ postId }: CommentSectionProps) {
         }
     };
 
-    const handleDeleteComment = async (commentId: string | number) => {
-        if (!window.confirm("Delete this comment?")) return;
+    const handleDeleteComment = async () => {
+        if (!commentToDelete) return;
+
+        setIsDeleting(true);
         try {
-            const res = await fetch(`/api/comments/${commentId}`, {
+            const res = await fetch(`/api/comments/${commentToDelete}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
             });
@@ -36,6 +42,9 @@ function CommentSection({ postId }: CommentSectionProps) {
             fetchComments();
         } catch (err: any) {
             alert(err.message);
+        } finally {
+            setIsDeleting(false);
+            setCommentToDelete(null);
         }
     };
 
@@ -52,11 +61,21 @@ function CommentSection({ postId }: CommentSectionProps) {
                     comments={comments || []}
                     postId={postId}
                     onSaveComment={handleSaveComment}
-                    onDeleteComment={handleDeleteComment}
+                    onDeleteComment={(commentId) => setCommentToDelete(commentId)}
                     onCommentCreated={fetchComments}
                 />
             )}
             <CreateCommentForm postId={postId} onCommentCreated={fetchComments} />
+            <ConfirmationModal
+                isOpen={!!commentToDelete}
+                onClose={() => setCommentToDelete(null)}
+                onConfirm={handleDeleteComment}
+                title="Delete Comment?"
+                message="Are you sure you want to delete this comment?"
+                confirmText="Delete"
+                confirmVariant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }
