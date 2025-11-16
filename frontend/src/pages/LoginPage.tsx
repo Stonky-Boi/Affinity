@@ -53,7 +53,7 @@ function LoginPage() {
             </div>
             <div className="hidden lg:flex flex-1 flex-col justify-center items-center p-8 bg-surface">
                 <img
-                    src="/affinity-logo.jpg"
+                    src="/affinity-logo.png"
                     alt="Affinity Logo"
                     className="w-32 h-32 mb-4 text-accent"
                 />
