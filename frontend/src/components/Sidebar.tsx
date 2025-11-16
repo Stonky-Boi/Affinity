@@ -1,14 +1,27 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
-import { Home, PlusSquare, Bell, MessageSquare, User, LogOut, Users } from 'lucide-react';
-import { useState } from 'react';
+import { Home, PlusSquare, Bell, MessageSquare, User, LogOut, Users, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-function Sidebar() {
+interface SidebarProps {
+    isMinimized: boolean;
+    onToggle: () => void;
+}
+
+function Sidebar({ isMinimized, onToggle }: SidebarProps) {
     const { user, logout, accounts, switchAccount, notifications } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const currentPath = location.pathname;
     const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+    const [isHovering, setIsHovering] = useState(false);
+    const isExpanded = !isMinimized || isHovering;
+
+    useEffect(() => {
+        if (isMinimized) {
+            setIsSwitchModalOpen(false);
+        }
+    }, [isMinimized]);
 
     const handleNavigate = (path: string) => {
         navigate(path);
@@ -37,7 +50,16 @@ function Sidebar() {
     ];
 
     return (
-        <div className="p-4 h-full flex flex-col justify-between text-primary-text relative">
+        <div
+            className={`
+        h-full flex flex-col justify-between text-primary-text
+        transition-all duration-300 ease-in-out
+        ${isMinimized && isHovering ? 'absolute w-64 p-4 bg-surface shadow-xl' : ''}
+        ${isMinimized && !isHovering ? 'p-2' : 'p-4'}
+      `}
+            onMouseEnter={() => { if (isMinimized) setIsHovering(true); }}
+            onMouseLeave={() => setIsHovering(false)}
+        >
             <div className="flex-shrink overflow-y-auto scrollbar-hide">
                 <nav>
                     <ul>
@@ -48,16 +70,20 @@ function Sidebar() {
                                 <li key={item.name} className="mb-4">
                                     <button
                                         onClick={item.action}
-                                        className={`flex items-center p-2 text-lg rounded-lg transition-colors duration-200 w-full ${isActive
-                                            ? 'bg-accent text-white font-bold shadow-md'
-                                            : 'font-semibold hover:bg-primary-border'
-                                            }`}
+                                        className={`
+                                          flex items-center p-2 text-lg rounded-lg transition-colors duration-200 w-full
+                                          ${isActive ? 'bg-accent text-white font-bold shadow-md' : 'font-semibold hover:bg-primary-border'}
+                                          ${!isExpanded ? 'justify-center' : ''}
+                                        `}
                                     >
-                                        <NavIcon size={24} className="mr-4 flex-shrink-0" />
-                                        <span className="flex-grow text-left">{item.name}</span>
-
+                                        <NavIcon size={24} className={`flex-shrink-0 ${isExpanded ? 'mr-4' : 'mr-0'}`} />
+                                        <span className={`flex-grow text-left ${!isExpanded && 'hidden'}`}>{item.name}</span>
                                         {item.badge && item.badge > 0 && (
-                                            <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                                            <span className={`
+                                              text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center
+                                              ${isActive ? 'bg-white text-accent' : 'bg-red-500'}
+                                              ${!isExpanded && 'hidden'}
+                                            `}>
                                                 {item.badge > 9 ? '9+' : item.badge}
                                             </span>
                                         )}
@@ -69,16 +95,43 @@ function Sidebar() {
                 </nav>
             </div>
             <div className="flex-shrink-0">
-                <button onClick={() => setIsSwitchModalOpen(true)} className="w-full flex items-center text-left p-2 text-md text-secondary-text rounded-lg hover:bg-primary-border transition-colors duration-200">
-                    <Users size={20} className="mr-3" />
-                    Switch Accounts
+                <button
+                    onClick={onToggle}
+                    className={`
+                        flex items-center p-2 text-md text-secondary-text rounded-lg hover:bg-primary-border w-full
+                        transition-colors duration-200
+                        ${!isExpanded ? 'justify-center' : 'mb-2'}
+                    `}
+                >
+                    {isMinimized ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
+                    <span className={`ml-3 ${!isExpanded && 'hidden'}`}>
+                        {isMinimized ? 'Maximize' : 'Minimize'}
+                    </span>
                 </button>
-                <button onClick={handleLogout} className="w-full flex items-center text-left p-2 text-md text-red-500 font-semibold rounded-lg hover:bg-red-500/10 transition-colors duration-200">
-                    <LogOut size={20} className="mr-3" />
-                    Log Out ({user?.username})
+                <button
+                    onClick={() => setIsSwitchModalOpen(true)}
+                    className={`
+                        w-full flex items-center text-left p-2 text-md text-secondary-text rounded-lg
+                        hover:bg-primary-border transition-colors duration-200
+                        ${!isExpanded ? 'justify-center' : ''}
+                    `}
+                >
+                    <Users size={20} className={`flex-shrink-0 ${isExpanded ? 'mr-3' : 'mr-0'}`} />
+                    <span className={`${!isExpanded && 'hidden'}`}>Switch Accounts</span>
+                </button>
+                <button
+                    onClick={handleLogout}
+                    className={`
+                        w-full flex items-center text-left p-2 text-md text-red-500 font-semibold
+                        rounded-lg hover:bg-red-500/10 transition-colors duration-200
+                        ${!isExpanded ? 'justify-center' : ''}
+                    `}
+                >
+                    <LogOut size={20} className={`flex-shrink-0 ${isExpanded ? 'mr-3' : 'mr-0'}`} />
+                    <span className={`${!isExpanded && 'hidden'}`}>Log Out ({user?.username})</span>
                 </button>
             </div>
-            {isSwitchModalOpen && (
+            {isSwitchModalOpen && isExpanded && (
                 <div className="absolute bottom-16 left-2 w-64 mb-2 p-4 bg-surface border border-primary-border rounded-lg shadow-lg z-20">
                     <h3 className="font-semibold mb-2 text-primary-text">Switch Account</h3>
                     <div className="space-y-2 max-h-40 overflow-y-auto">

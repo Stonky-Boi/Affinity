@@ -5,6 +5,7 @@ import ReactionSection from './ReactionSection';
 import { useAuth } from '../context/AuthContext';
 import type { Post, PostListProps } from '../types';
 import MediaRenderer from './MediaRenderer';
+import { formatRelativeTime } from '../utils/formatDate';
 
 function PostList({ posts, onSavePost, onDeletePost }: PostListProps) {
     const { user } = useAuth();
@@ -26,6 +27,7 @@ function PostList({ posts, onSavePost, onDeletePost }: PostListProps) {
             <div className="space-y-6">
                 {posts.map(post => {
                     const profilePic = post.author.picture_url || `https://api.dicebear.com/8.x/initials/svg?seed=${post.author.username}`;
+                    const timeAgo = formatRelativeTime(post.created_at);
                     return (
                         <div key={post.id} className="p-4 border border-primary-border rounded-lg shadow-sm bg-surface">
                             {editingPostId === post.id ? (
@@ -52,9 +54,13 @@ function PostList({ posts, onSavePost, onDeletePost }: PostListProps) {
                                     <div className="flex-grow">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <Link to={`/${post.author.username}`}>
-                                                    <p className="font-semibold text-secondary-text hover:underline">{post.author.username}</p>
-                                                </Link>
+                                                <div className="flex items-center gap-2">
+                                                    <Link to={`/${post.author.username}`}>
+                                                        <p className="font-semibold text-primary-text hover:underline">{post.author.username}</p>
+                                                    </Link>
+                                                    <span className="text-xs text-secondary-text">·</span>
+                                                    <span className="text-xs text-secondary-text">{timeAgo}</span>
+                                                </div>
                                                 <p className="mt-1 text-base text-primary-text">{post.content}</p>
                                             </div>
                                             {user && user.id === post.author_id && (
@@ -68,7 +74,7 @@ function PostList({ posts, onSavePost, onDeletePost }: PostListProps) {
                                             <div className="mt-4">
                                                 <MediaRenderer
                                                     url={post.media_url}
-                                                    alt="Post media"
+                                                    alt={post.content || 'Post media'}
                                                     className="max-h-96 rounded-lg border border-primary-border"
                                                 />
                                             </div>

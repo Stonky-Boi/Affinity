@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import type React from 'react';
+import { useTheme } from '../context/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 
 function LoginPage() {
     const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ function LoginPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
+    const { theme, toggleTheme } = useTheme();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,44 +41,64 @@ function LoginPage() {
     };
 
     return (
-        <div className="flex flex-col justify-center items-center min-h-screen bg-background">
-            <form onSubmit={handleSubmit} className="p-8 bg-surface shadow-md rounded-lg w-96">
-                <h1 className="text-2xl font-bold mb-6 text-center text-primary-text">Login</h1>
-                {error && <p className="text-red-500 text-center mb-4">{error}</p>}
-                <div className="mb-4">
-                    <label className="block text-secondary-text mb-2">Email</label>
-                    <input
-                        type="email"
-                        className="w-full p-2 border border-primary-border rounded-lg bg-background text-primary-text"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                </div>
-                <div className="mb-6">
-                    <label className="block text-secondary-text mb-2">Password</label>
-                    <input
-                        type="password"
-                        className="w-full p-2 border border-primary-border rounded-lg bg-background text-primary-text"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                </div>
+        <div className="flex min-h-screen bg-background text-primary-text">
+            <div className="absolute top-6 right-6">
                 <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-accent text-white font-semibold p-2 rounded-lg hover:brightness-90 disabled:opacity-50"
+                    onClick={toggleTheme}
+                    className="p-2 rounded-full hover:bg-primary-border text-primary-text"
+                    aria-label="Toggle theme"
                 >
-                    {isSubmitting ? 'Logging in...' : 'Login'}
+                    {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                 </button>
-                <p className="mt-4 text-center text-secondary-text">
-                    Don't have an account?{' '}
-                    <Link to="/signup" className="text-accent hover:underline">
-                        Sign Up
-                    </Link>
-                </p>
-            </form>
+            </div>
+            <div className="hidden lg:flex flex-1 flex-col justify-center items-center p-8 bg-surface">
+                <img
+                    src="/affinity-logo.jpg"
+                    alt="Affinity Logo"
+                    className="w-32 h-32 mb-4 text-accent"
+                />
+                <h1 className="text-5xl font-bold text-accent">Affinity</h1>
+                <p className="text-lg text-secondary-text mt-2">Connect with your network.</p>
+            </div>
+            <div className="flex-1 flex flex-col justify-center items-center p-8">
+                <form onSubmit={handleSubmit} className="p-8 bg-surface shadow-lg rounded-lg w-96">
+                    <h1 className="text-2xl font-bold mb-6 text-center text-primary-text">Login</h1>
+                    {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+                    <div className="mb-4">
+                        <label className="block text-secondary-text mb-2">Email</label>
+                        <input
+                            type="email"
+                            className="w-full p-2 border border-primary-border rounded-lg bg-background text-primary-text"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="mb-6">
+                        <label className="block text-secondary-text mb-2">Password</label>
+                        <input
+                            type="password"
+                            className="w-full p-2 border border-primary-border rounded-lg bg-background text-primary-text"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full bg-accent text-white font-semibold p-2 rounded-lg hover:brightness-90 disabled:opacity-50"
+                    >
+                        {isSubmitting ? 'Logging in...' : 'Login'}
+                    </button>
+                    <p className="mt-4 text-center text-secondary-text">
+                        Don't have an account?{' '}
+                        <Link to="/signup" className="text-accent hover:underline">
+                            Sign Up
+                        </Link>
+                    </p>
+                </form>
+            </div>
         </div>
     );
 }
