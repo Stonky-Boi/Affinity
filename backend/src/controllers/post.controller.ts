@@ -187,9 +187,8 @@ export const processReaction = async (req: AuthRequest, res: Response) => {
         if (existingReaction) {
             if (existingReaction.reaction_type === reaction_type) {
                 await prisma.reaction.delete({ where: { id: existingReaction.id } });
-                if (post && post.author_id !== userId) {
-                    await updateFriendshipCounters(userId, post.author_id, 'num_reactions', 'decrement');
-                }
+                // Decrement reaction count in friendship counters
+                // Handled in trigger
                 return res.json({ message: 'Reaction removed' });
             } else {
                 const updatedReaction = await prisma.reaction.update({

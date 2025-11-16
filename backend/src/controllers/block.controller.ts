@@ -23,14 +23,7 @@ export const toggleBlock = async (req: AuthRequest, res: Response) => {
                 data: { blocker_id, blocked_id }
             });
             // When A blocks B, they unfollow each other.
-            await prisma.follows.deleteMany({
-                where: {
-                    OR: [
-                        { follower_id: blocker_id, following_id: blocked_id },
-                        { follower_id: blocked_id, following_id: blocker_id }
-                    ]
-                }
-            });
+            // Handled in trigger in the database.
             // (You might also want to remove them from conversations, etc.)
             res.json({ message: "User blocked." });
         }
