@@ -11,6 +11,8 @@ function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadController, setUploadController] = useState<AbortController | null>(null);
     const { user, token } = useAuth();
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -18,16 +20,32 @@ function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
             return;
         }
         const file = e.target.files[0];
+        const controller = new AbortController();
+        setUploadController(controller);
         setIsUploading(true);
         setError(null);
-
+        setUploadProgress(0);
         try {
-            const secure_url = await uploadToCloudinary(file, token);
+            const secure_url = await uploadToCloudinary(file, token, {
+                onProgress: (progress) => setUploadProgress(progress),
+                abortSignal: controller.signal,
+            });
+
             setMediaUrl(secure_url);
         } catch (err: any) {
-            setError(err.message);
+            if (err.message !== "Upload canceled.") {
+                setError(err.message);
+            }
         } finally {
             setIsUploading(false);
+            setUploadController(null);
+        }
+    };
+
+    const handleCancelUpload = () => {
+        if (uploadController) {
+            uploadController.abort();
+            setUploadProgress(0);
         }
     };
 
@@ -102,14 +120,31 @@ function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                         />
                     </div>
                 )}
-                {isUploading && <p className="text-accent text-sm">Uploading media...</p>}
+                {isUploading && (
+                    <div className="flex items-center gap-4">
+                        <div className="flex-grow bg-primary-border rounded-full h-2.5">
+                            <div
+                                className="bg-accent h-2.5 rounded-full transition-all duration-150"
+                                style={{ width: `${uploadProgress}%` }}
+                            ></div>
+                        </div>
+                        <span className="text-sm font-semibold text-primary-text">{uploadProgress}%</span>
+                        <button
+                            type="button"
+                            onClick={handleCancelUpload}
+                            className="p-1 rounded-full text-secondary-text hover:bg-red-500/10 hover:text-red-500"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                )}
                 {error && (
                     <p className="text-red-500 text-sm">{error}</p>
                 )}
                 <button
                     type="submit"
                     disabled={isSubmitting || isUploading}
-                    className="px-4 py-2 bg-accent text-white font-semibold rounded-lg ... "
+                    className="px-4 py-2 bg-accent text-white font-semibold rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 hover:brightness-90 disabled:opacity-50"
                 >
                     {isSubmitting ? 'Posting...' : (isUploading ? 'Waiting...' : 'Post')}
                 </button>

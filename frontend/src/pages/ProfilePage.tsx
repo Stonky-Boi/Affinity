@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { Trash2, X } from 'lucide-react';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { uploadToCloudinary } from '../utils/upload';
 
@@ -23,6 +24,8 @@ function ProfilePage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadController, setUploadController] = useState<AbortController | null>(null);
     const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
     const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
     const [blockError, setBlockError] = useState<string | null>(null);
@@ -120,16 +123,32 @@ function ProfilePage() {
             return;
         }
         const file = e.target.files[0];
+        const controller = new AbortController();
+        setUploadController(controller);
         setIsUploading(true);
         setFormState({ error: null, success: false });
+        setUploadProgress(0);
         try {
-            const secure_url = await uploadToCloudinary(file, token);
+            const secure_url = await uploadToCloudinary(file, token, {
+                onProgress: (progress) => setUploadProgress(progress),
+                abortSignal: controller.signal,
+            });
             setFormData(prev => ({ ...prev, picture_url: secure_url }));
             setFormState({ error: null, success: true });
         } catch (err: any) {
-            setFormState({ error: err.message, success: false });
+            if (err.message !== "Upload canceled.") {
+                setFormState({ error: err.message, success: false });
+            }
         } finally {
             setIsUploading(false);
+            setUploadController(null);
+        }
+    };
+
+    const handleCancelUpload = () => {
+        if (uploadController) {
+            uploadController.abort();
+            setUploadProgress(0);
         }
     };
 
@@ -162,11 +181,28 @@ function ProfilePage() {
                             disabled={isUploading}
                             className="px-4 py-2 bg-red-600/10 text-red-500 text-sm font-semibold rounded-lg hover:bg-red-600/20"
                         >
-                            Remove
+                            <Trash2 size={16} />
                         </button>
                     )}
                 </div>
-                {isUploading && <p className="text-accent text-sm mt-2">Uploading...</p>}
+                {isUploading && (
+                    <div className="flex items-center gap-4 mt-2 max-w-sm">
+                        <div className="flex-grow bg-primary-border rounded-full h-2.5">
+                            <div
+                                className="bg-accent h-2.5 rounded-full transition-all duration-150"
+                                style={{ width: `${uploadProgress}%` }}
+                            ></div>
+                        </div>
+                        <span className="text-sm font-semibold text-primary-text">{uploadProgress}%</span>
+                        <button
+                            type="button"
+                            onClick={handleCancelUpload}
+                            className="p-1 rounded-full text-secondary-text hover:bg-red-500/10 hover:text-red-500"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                )}
             </div>
             <form onSubmit={handleSave} className="space-y-4 max-w-2xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
