@@ -45,7 +45,7 @@ function SignupPage() {
             </div>
             <div className="hidden lg:flex flex-1 flex-col justify-center items-center p-8 bg-surface">
                 <img
-                    src="/affinity-logo.png"
+                    src="/affinity-logo.svg"
                     alt="Affinity Logo"
                     className="w-32 h-32 mb-4 text-accent"
                 />
