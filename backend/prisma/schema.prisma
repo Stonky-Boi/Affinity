@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
     provider = "postgresql"
-    url      = env("DATABASE_URL")
 }
 
 model User {
@@ -40,8 +39,6 @@ model User {
 
     blocking       Block[]       @relation("Blocking")
     blockedBy      Block[]       @relation("Blocked")
-    conversation   Conversation? @relation(fields: [conversationId], references: [id])
-    conversationId Int?
 }
 
 model UserSettings {
@@ -141,7 +138,6 @@ model Conversation {
 
     participants Participant[]
     messages     Message[]
-    users        User[]
 }
 
 model Message {

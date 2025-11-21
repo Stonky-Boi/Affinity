@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express = require('express');
 import { createServer } from 'http';
 import { Server } from 'socket.io';

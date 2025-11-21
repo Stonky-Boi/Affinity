@@ -58,7 +58,7 @@ export const handleSocketEvents = (io: Server) => {
                     }
                 });
                 if (conversation && conversation.type === 'DIRECT' && conversation.participants.length === 2) {
-                    const otherUser = conversation.participants.find(p => p.user_id !== sender_id);
+                    const otherUser = conversation.participants.find((p: { user_id: number }) => p.user_id !== sender_id);
                     if (otherUser) {
                         await updateFriendshipCounters(sender_id, otherUser.user_id, 'num_messages', 'increment');
                     }
